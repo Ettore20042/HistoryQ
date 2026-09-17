@@ -1,10 +1,10 @@
-# HistoryGenie
+# HistoryQ
 
 
 
 > Piattaforma web per la consultazione di documenti storici tramite intelligenza artificiale conversazionale.
 
-HistoryGenie permette di caricare collezioni di documenti storici e interrogarli attraverso un'interfaccia chat basata su **Retrieval-Augmented Generation (RAG)**. Il sistema recupera i passaggi rilevanti dai documenti indicizzati e genera risposte contestuali tramite un Large Language Model, citando le fonti utilizzate.
+HistoryQ permette di caricare collezioni di documenti storici e interrogarli attraverso un'interfaccia chat basata su **Retrieval-Augmented Generation (RAG)**. Il sistema recupera i passaggi rilevanti dai documenti indicizzati e genera risposte contestuali tramite un Large Language Model, citando le fonti utilizzate.
 
 ---
 
@@ -118,7 +118,7 @@ Il dev server Vite ascolta su `http://localhost:5173` e proxia automaticamente l
 ## Struttura del progetto
 
 ```
-historygenie/
+HistoryQ/
 ├── src/                        # Frontend Vue 3
 │   ├── components/
 │   │   ├── DocumentUpload.vue
