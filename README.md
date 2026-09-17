@@ -1,6 +1,6 @@
 # HistoryGenie
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 
 > Piattaforma web per la consultazione di documenti storici tramite intelligenza artificiale conversazionale.
 
