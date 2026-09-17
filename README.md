@@ -1,5 +1,7 @@
 # HistoryGenie
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > Piattaforma web per la consultazione di documenti storici tramite intelligenza artificiale conversazionale.
 
 HistoryGenie permette di caricare collezioni di documenti storici e interrogarli attraverso un'interfaccia chat basata su **Retrieval-Augmented Generation (RAG)**. Il sistema recupera i passaggi rilevanti dai documenti indicizzati e genera risposte contestuali tramite un Large Language Model, citando le fonti utilizzate.
@@ -179,4 +181,6 @@ Per bug e proposte usa la sezione [Issues](../../issues).
 
 ## Licenza
 
-Da definire — specificare il file `LICENSE` nella root del repository.
+Questo progetto è rilasciato sotto la licenza MIT. Vedi il file `LICENSE` nella root per il testo completo.
+
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
