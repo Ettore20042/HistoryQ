@@ -1,4 +1,4 @@
-package com.example.provadivue.service;
+package com.example.historyq.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

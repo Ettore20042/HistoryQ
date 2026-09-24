@@ -1,7 +1,7 @@
-package com.example.provadivue.controller;
+package com.example.historyq.controller;
 
-import com.example.provadivue.dto.ChatRequest;
-import com.example.provadivue.service.RagFlowService;
+import com.example.historyq.dto.ChatRequest;
+import com.example.historyq.service.RagFlowService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

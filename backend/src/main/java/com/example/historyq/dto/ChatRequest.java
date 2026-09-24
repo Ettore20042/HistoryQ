@@ -1,4 +1,4 @@
-package com.example.provadivue.dto;
+package com.example.historyq.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

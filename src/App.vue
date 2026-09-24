@@ -1,3 +1,12 @@
+<!--
+-Gestisce la visibilità delle schede (Upload, Chat o Entrambe).
+
+-Controlla lo stato di connessione al backend all'avvio della pagina.
+
+-Ascolta il completamento dell'upload dal componente figlio per mostrare una notifica temporanea di 6 secondi e aggiornare i dati.
+-->
+
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import DocumentUpload from './components/DocumentUpload.vue'

@@ -25,7 +25,7 @@ const chatContainerRef = ref<HTMLElement | null>(null)
 const errorAlert = ref<string | null>(null)
 
 async function scrollToBottom() {
-  await nextTick()
+  await nextTick() // Assicurati che il DOM sia aggiornato prima di scorrere
   if (chatContainerRef.value) {
     chatContainerRef.value.scrollTop = chatContainerRef.value.scrollHeight
   }
