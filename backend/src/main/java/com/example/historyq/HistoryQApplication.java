@@ -7,6 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class HistoryQApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ProvadivueBackendApplication.class, args);
+        SpringApplication.run(HistoryQApplication.class, args);
     }
 }

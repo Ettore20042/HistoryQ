@@ -3,6 +3,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.UUID;
+import java.util.Objects;
 
 @Embeddable
 public class UserRoleId implements Serializable {
@@ -34,5 +35,20 @@ public class UserRoleId implements Serializable {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public boolean equals(Object object) {
+        if (object == null || getClass() != object.getClass()) return false;
+        if (!super.equals(object)) return false;
+
+        UserRoleId that = (UserRoleId) object;
+        return java.util.Objects.equals(getUserId(), that.getUserId()) && java.util.Objects.equals(getRole(), that.getRole());
+    }
+
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + Objects.hashCode(getUserId());
+        result = 31 * result + Objects.hashCode(getRole());
+        return result;
     }
 }
