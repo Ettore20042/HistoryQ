@@ -18,7 +18,6 @@ import java.util.UUID;
 public class Document {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "original_name", nullable = false, length = 512)
@@ -34,7 +33,7 @@ public class Document {
     private long fileSizeBytes;
 
     @ManyToOne
-    @JoinColumn(name = "uploaded_by", nullable = false)
+    @JoinColumn(name = "uploaded_by"/*, nullable = false*/)
     private User uploadedBy;
 
     @Column(name = "historical_date")
@@ -46,8 +45,19 @@ public class Document {
     @Column(name = "archive_source", length = 512)
     private String archiveSource;
 
+    public String getStoragePath() {
+        return storagePath;
+    }
+
+    public void setStoragePath(String storagePath) {
+        this.storagePath = storagePath;
+    }
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "storage_path", length = 1024)
+    private String storagePath;
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
