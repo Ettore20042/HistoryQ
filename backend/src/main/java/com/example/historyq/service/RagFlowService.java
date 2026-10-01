@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class RagFlowService {
@@ -40,6 +41,14 @@ public class RagFlowService {
         this.baseUrl = baseUrl;
         this.datasetId = datasetId;
         this.chatId = chatId;
+        log.info(
+                "RAGFlow API key presente: {}",
+                apiKey != null && !apiKey.isBlank()
+        );
+        log.info(
+                "RAGFlow API key length: {}",
+                apiKey != null ? apiKey.length() : 0
+        );
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -243,6 +252,236 @@ public class RagFlowService {
             return Collections.emptyList();
         } catch (Exception e) {
             return Collections.emptyList();
+        }
+    }
+    public Map<String, Object> uploadOcrText(String datasetId, String filename, String ocrText) {
+
+        if (filename == null || filename.isBlank()) {
+            throw new IllegalArgumentException("Il nome del file non può essere vuoto.");
+        }
+
+        if (ocrText == null || ocrText.isBlank()) {
+            throw new IllegalArgumentException("Il testo OCR non può essere vuoto.");
+        }
+
+        String txtFilename = filename + ".txt";
+
+        log.info(
+                "Uploading OCR text '{}' to dataset '{}'",
+                txtFilename,
+                datasetId
+        );
+
+        log.info(
+                "RAGFlow URL: {}/api/v1/datasets/{}/documents",
+                baseUrl,
+                datasetId
+        );
+
+        byte[] content = ocrText.getBytes(StandardCharsets.UTF_8);
+
+        ByteArrayResource resource = new ByteArrayResource(content) {
+            @Override
+            public String getFilename() {
+                return txtFilename;
+            }
+        };
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", resource);
+
+        String responseBody = restClient.post()
+                .uri("/api/v1/datasets/{datasetId}/documents", datasetId)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "success");
+        result.put("fileName", txtFilename);
+        result.put("message", "Testo OCR caricato con successo nel dataset.");
+        result.put("rawResponse", responseBody != null ? responseBody : "");
+
+        return result;
+    }
+    public String createDataset(String documentName) {
+
+        if (documentName == null || documentName.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Il nome del documento non può essere vuoto."
+            );
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+
+        payload.put(
+                "name",
+                "document-" + documentName
+        );
+
+        payload.put(
+                "chunk_method",
+                "naive"
+        );
+
+        String responseBody = restClient.post()
+                .uri("/api/v1/datasets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+
+            int code = root.path("code").asInt(-1);
+
+            if (code != 0) {
+                throw new RuntimeException(
+                        "Errore creazione dataset RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+
+            String datasetId = root.path("data").path("id").asText();
+
+            if (datasetId.isBlank()) {
+                throw new RuntimeException(
+                        "RAGFlow non ha restituito il dataset ID."
+                );
+            }
+
+            log.info(
+                    "Dataset RAGFlow creato: {}",
+                    datasetId
+            );
+
+            return datasetId;
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore nella risposta di RAGFlow durante la creazione del dataset.",
+                    e
+            );
+        }
+    }
+    public Map<String, Object> parseDocument(
+            String datasetId,
+            String documentId
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+
+        payload.put(
+                "document_ids",
+                List.of(documentId)
+        );
+
+        String responseBody = restClient.post()
+                .uri(
+                        "/api/v1/datasets/{datasetId}/documents/parse",
+                        datasetId
+                )
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody); // Parse the response body as JSON
+
+            if (root.path("code").asInt(-1) != 0) {
+                throw new RuntimeException(
+                        "Errore parsing RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", "success");
+            result.put("rawResponse", responseBody);// Store the raw response for debugging
+
+            log.info(
+                    "Parsing RAGFlow avviato: dataset={}, document={}",
+                    datasetId,
+                    documentId
+            );
+
+            return result;
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore durante l'avvio del parsing RAGFlow.",
+                    e
+            );
+        }
+    }
+    public Map<String, Object> getDocumentStatus(
+            String datasetId,
+            String documentId
+    ) {
+        String responseBody = restClient.get()
+                .uri(
+                        "/api/v1/datasets/{datasetId}/documents",
+                        datasetId
+                )
+                .retrieve()
+                .body(String.class);
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+
+            if (root.path("code").asInt(-1) != 0) {
+                throw new RuntimeException(
+                        "Errore RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+
+            JsonNode data = root.path("data");
+
+            JsonNode documents;
+
+            if (data.isArray()) {
+                documents = data;
+            } else {
+                documents = data.path("docs");
+            }
+
+            for (JsonNode document : documents) {
+
+                if (documentId.equals(document.path("id").asText())) {
+
+                    Map<String, Object> result = new LinkedHashMap<>();
+
+                    result.put("id", document.path("id").asText());
+                    result.put("name", document.path("name").asText());
+                    result.put("run", document.path("run").asText());
+                    result.put(
+                            "progress",
+                            document.path("progress").asDouble()
+                    );
+                    result.put(
+                            "chunkCount",
+                            document.path("chunk_count").asInt()
+                    );
+
+                    return result;
+                }
+            }
+
+            throw new RuntimeException(
+                    "Documento non trovato nel dataset RAGFlow. "
+                            + "Dataset=" + datasetId
+                            + ", Document=" + documentId
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore durante il controllo dello stato RAGFlow: "
+                            + e.getMessage(),
+                    e
+            );
         }
     }
 }

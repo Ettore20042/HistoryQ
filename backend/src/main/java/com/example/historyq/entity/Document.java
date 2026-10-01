@@ -45,8 +45,41 @@ public class Document {
     @Column(name = "archive_source", length = 512)
     private String archiveSource;
 
+    @Column(name = "ocr_text", columnDefinition = "TEXT")
+    private String ocrText;
+
+    @Column(name = "ragflow_dataset_id", length = 128)
+    private String ragflowDatasetId;
+
+    @Column(name = "ragflow_chat_id", length = 128)
+    private String ragflowChatId;
+
+    public String getOcrText() {
+        return ocrText;
+    }
+
+    public void setOcrText(String ocrText) {
+        this.ocrText = ocrText;
+    }
+
     public String getStoragePath() {
         return storagePath;
+    }
+
+    public String getRagflowDatasetId() {
+        return ragflowDatasetId;
+    }
+
+    public void setRagflowDatasetId(String ragflowDatasetId) {
+        this.ragflowDatasetId = ragflowDatasetId;
+    }
+
+    public String getRagflowChatId() {
+        return ragflowChatId;
+    }
+
+    public void setRagflowChatId(String ragflowChatId) {
+        this.ragflowChatId = ragflowChatId;
     }
 
     public void setStoragePath(String storagePath) {
