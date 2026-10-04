@@ -125,41 +125,75 @@ public class RagFlowService {
     /**
      * Asks a question to RAGFlow chat endpoint.
      */
-    public Map<String, Object> askQuestion(String question) {
-        if (question == null || question.isBlank()) {
-            throw new IllegalArgumentException("La domanda non può essere vuota.");
+
+    public Map<String, Object> askQuestion(
+            String chatId,
+            String question
+    ) {
+        if (chatId == null || chatId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Il chat ID RAGFlow non può essere vuoto."
+            );
         }
 
-        log.info("Asking question to RAGFlow (dataset='{}', chat='{}')", datasetId, chatId);
+        if (question == null || question.isBlank()) {
+            throw new IllegalArgumentException(
+                    "La domanda non può essere vuota."
+            );
+        }
+
+        log.info(
+                "Domanda inviata a RAGFlow: chat={}",
+                chatId
+        );
 
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("question", question.trim());
-        payload.put("stream", false);
 
-        if (chatId != null && !chatId.isBlank() && !chatId.startsWith("your_")) {
-            payload.put("chat_id", chatId);
-        }
-        if (datasetId != null && !datasetId.isBlank() && !datasetId.startsWith("your_")) {
-            payload.put("dataset_ids", List.of(datasetId));
-        }
+        payload.put(
+                "question",
+                question.trim()
+        );
+
+        payload.put(
+                "stream",
+                false
+        );
 
         String responseBody = restClient.post()
-                .uri("/api/v1/chat/completions")
+                .uri(
+                        "/api/v1/chats/{chatId}/completions",
+                        chatId
+                )
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
                 .retrieve()
                 .body(String.class);
 
         String answer = extractAnswer(responseBody);
+
         List<?> citations = extractCitations(responseBody);
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "success");
-        result.put("answer", answer);
-        result.put("citations", citations);
-        result.put("rawResponse", responseBody != null ? responseBody : "");
+
+        result.put(
+                "status",
+                "success"
+        );
+
+        result.put(
+                "answer",
+                answer
+        );
+
+        result.put(
+                "citations",
+                citations
+        );
+
         return result;
     }
+
+
 
     private MultiValueMap<String, Object> buildUploadBody(MultipartFile file) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
@@ -254,14 +288,21 @@ public class RagFlowService {
             return Collections.emptyList();
         }
     }
-    public Map<String, Object> uploadOcrText(String datasetId, String filename, String ocrText) {
-
+    public String uploadOcrText(
+            String datasetId,
+            String filename,
+            String ocrText
+    ) {
         if (filename == null || filename.isBlank()) {
-            throw new IllegalArgumentException("Il nome del file non può essere vuoto.");
+            throw new IllegalArgumentException(
+                    "Il nome del file non può essere vuoto."
+            );
         }
 
         if (ocrText == null || ocrText.isBlank()) {
-            throw new IllegalArgumentException("Il testo OCR non può essere vuoto.");
+            throw new IllegalArgumentException(
+                    "Il testo OCR non può essere vuoto."
+            );
         }
 
         String txtFilename = filename + ".txt";
@@ -269,12 +310,6 @@ public class RagFlowService {
         log.info(
                 "Uploading OCR text '{}' to dataset '{}'",
                 txtFilename,
-                datasetId
-        );
-
-        log.info(
-                "RAGFlow URL: {}/api/v1/datasets/{}/documents",
-                baseUrl,
                 datasetId
         );
 
@@ -287,23 +322,63 @@ public class RagFlowService {
             }
         };
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        MultiValueMap<String, Object> body =
+                new LinkedMultiValueMap<>();
+
         body.add("file", resource);
 
         String responseBody = restClient.post()
-                .uri("/api/v1/datasets/{datasetId}/documents", datasetId)
+                .uri(
+                        "/api/v1/datasets/{datasetId}/documents",
+                        datasetId
+                )
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .body(body)
                 .retrieve()
                 .body(String.class);
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "success");
-        result.put("fileName", txtFilename);
-        result.put("message", "Testo OCR caricato con successo nel dataset.");
-        result.put("rawResponse", responseBody != null ? responseBody : "");
+        try {
+            JsonNode root =
+                    objectMapper.readTree(responseBody);
 
-        return result;
+            if (root.path("code").asInt(-1) != 0) {
+                throw new RuntimeException(
+                        "Errore upload documento RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+
+            JsonNode data = root.path("data");
+
+            if (!data.isArray() || data.isEmpty()) {
+                throw new RuntimeException(
+                        "RAGFlow non ha restituito il documento creato."
+                );
+            }
+
+            String documentId =
+                    data.get(0).path("id").asText();
+
+            if (documentId.isBlank()) {
+                throw new RuntimeException(
+                        "RAGFlow non ha restituito il document ID."
+                );
+            }
+
+            log.info(
+                    "Documento OCR caricato in RAGFlow: {}",
+                    documentId
+            );
+
+            return documentId;
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore nella risposta di RAGFlow durante l'upload del documento: "
+                            + e.getMessage(),
+                    e
+            );
+        }
     }
     public String createDataset(String documentName) {
 
@@ -483,5 +558,97 @@ public class RagFlowService {
                     e
             );
         }
+    }
+    public String createChat(String documentName,String datasetId){
+        if (datasetId == null || datasetId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Il dataset ID non può essere vuoto."
+            );
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put(
+                "name",
+                "chat-" + documentName
+        );
+        payload.put(
+                "dataset_ids",
+                List.of(datasetId)
+        );
+        String responseBody = restClient.post()
+                .uri("/api/v1/chats")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            if (root.path("code").asInt(-1) != 0) {
+                throw new RuntimeException(
+                        "Errore creazione chat RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+            String chatId = root.path("data").path("id").asText();
+            if (chatId.isBlank()) {
+                throw new RuntimeException(
+                        "RAGFlow non ha restituito il chat ID."
+                );
+            }
+            log.info(
+                    "Chat RAGFlow creata: {}",
+                    chatId,
+                    datasetId
+            );
+            return chatId;
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore nella risposta di RAGFlow durante la creazione della chat."
+                   + e.getMessage(),
+                    e
+            );
+
+
+        }
+
+    }
+    public void waitUntilParsed(
+            String datasetId,
+            String documentId
+    ) throws InterruptedException {
+
+        long startTime = System.currentTimeMillis();
+        long timeout = 2 * 60 * 1000L;
+
+        while (System.currentTimeMillis() - startTime < timeout) {
+
+            Map<String, Object> status =
+                    getDocumentStatus(datasetId, documentId);
+
+            String run = (String) status.get("run");
+
+            log.info(
+                    "RAGFlow parsing: dataset={}, document={}, run={}, progress={}",
+                    datasetId,
+                    documentId,
+                    run,
+                    status.get("progress")
+            );
+
+            if ("DONE".equals(run)) {
+                return;
+            }
+
+            if ("FAIL".equals(run) || "CANCEL".equals(run)) {
+                throw new RuntimeException(
+                        "Parsing RAGFlow fallito: " + run
+                );
+            }
+
+            Thread.sleep(1000);
+        }
+
+        throw new RuntimeException(
+                "Timeout durante il parsing RAGFlow."
+        );
     }
 }

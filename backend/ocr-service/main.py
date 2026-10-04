@@ -1,53 +1,27 @@
+
 from fastapi import FastAPI, BackgroundTasks, UploadFile, File, HTTPException
 from uuid import uuid4
 from pathlib import Path
 from PIL import Image
 import pytesseract
 
-
 app = FastAPI()
-
-
-# ============================================================
-# CONFIGURAZIONE
-# ============================================================
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# Percorso di Tesseract su Windows
 TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-# Configura pytesseract per utilizzare Tesseract
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
-# Lingua OCR
 OCR_LANGUAGE = "ita"
-
-# Configurazione Tesseract
-# PSM 3 = segmentazione automatica della pagina
 TESSERACT_CONFIG = "--psm 3"
 
-# Formati immagine accettati
 ALLOWED_EXTENSIONS = {
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".tiff",
-    ".webp"
+    ".jpg", ".jpeg", ".png", ".tiff", ".webp"
 }
-
-
-# ============================================================
-# JOB IN MEMORIA
-# ============================================================
 
 jobs = {}
 
-
-# ============================================================
-# HOME
-# ============================================================
 
 @app.get("/")
 def home():
@@ -57,48 +31,51 @@ def home():
     }
 
 
-# ============================================================
-# PROCESSAMENTO OCR
-# ============================================================
-
 def process_job(job_id: str):
-
     jobs[job_id]["status"] = "PROCESSING"
 
-    file_path = jobs[job_id]["filepath"]
+    file_paths = jobs[job_id]["filepaths"]
 
     try:
-
         print(f"[OCR] Avvio job: {job_id}")
-        print(f"[OCR] File: {file_path}")
+        print(f"[OCR] Numero pagine: {len(file_paths)}")
 
-        # Apertura immagine
-        image = Image.open(file_path)
+        results = []
 
-        print(
-            f"[OCR] Immagine caricata: "
-            f"{image.width}x{image.height}"
-        )
+        for index, file_path in enumerate(file_paths, start=1):
+            print(
+                f"[OCR] Elaborazione pagina {index}/{len(file_paths)}: "
+                f"{file_path}"
+            )
 
-        # Conversione in RGB
-        if image.mode != "RGB":
-            image = image.convert("RGB")
+            image = Image.open(file_path)
 
-        # Esecuzione OCR tramite Tesseract
-        text = pytesseract.image_to_string(
-            image,
-            lang=OCR_LANGUAGE,
-            config=TESSERACT_CONFIG
-        )
+            print(
+                f"[OCR] Immagine caricata: "
+                f"{image.width}x{image.height}"
+            )
 
-        print("[OCR] OCR completato")
+            if image.mode != "RGB":
+                image = image.convert("RGB")
 
-        # Salvataggio risultato
+            text = pytesseract.image_to_string(
+                image,
+                lang=OCR_LANGUAGE,
+                config=TESSERACT_CONFIG
+            )
+
+            results.append(text)
+
+            print(f"[OCR] Pagina {index} completata")
+
+        combined_text = "\n\n".join(results)
+
+        print("[OCR] OCR completo terminato")
+
         jobs[job_id]["status"] = "COMPLETED"
-        jobs[job_id]["result"] = text
+        jobs[job_id]["result"] = combined_text
 
     except Exception as e:
-
         print(f"[OCR] Errore: {e}")
 
         jobs[job_id]["status"] = "FAILED"
@@ -106,53 +83,56 @@ def process_job(job_id: str):
         jobs[job_id]["error"] = str(e)
 
 
-# ============================================================
-# CREAZIONE JOB
-# ============================================================
-
 @app.post("/ocr/batch")
 def create_batch(
         background_tasks: BackgroundTasks,
-        file: UploadFile = File(...)
+        files: list[UploadFile] = File(...)
 ):
-
-    filename = file.filename or "image"
-
-    extension = Path(filename).suffix.lower()
-
-    # Controllo formato
-    if extension not in ALLOWED_EXTENSIONS:
-
+    if not files:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Formato non supportato. "
-                "Usa JPG, JPEG, PNG, TIFF o WEBP."
-            )
+            detail="Nessun file ricevuto."
         )
 
-    # Generazione ID del job
     job_id = str(uuid4())
 
-    # Nome file interno
-    stored_filename = f"{job_id}{extension}"
+    file_paths = []
+    filenames = []
 
-    file_path = UPLOAD_DIR / stored_filename
+    for index, file in enumerate(files, start=1):
 
-    # Salvataggio file
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
+        filename = file.filename or f"page-{index}"
+        extension = Path(filename).suffix.lower()
 
-    # Creazione job
+        if extension not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                        "Formato non supportato: "
+                        + extension
+                )
+            )
+
+        stored_filename = (
+            f"{job_id}_{index:04d}{extension}"
+        )
+
+        file_path = UPLOAD_DIR / stored_filename
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        file_paths.append(str(file_path))
+        filenames.append(filename)
+
     jobs[job_id] = {
         "status": "PENDING",
-        "filename": filename,
-        "filepath": str(file_path),
+        "filenames": filenames,
+        "filepaths": file_paths,
         "result": None,
         "error": None
     }
 
-    # Avvio OCR in background
     background_tasks.add_task(
         process_job,
         job_id
@@ -161,19 +141,15 @@ def create_batch(
     return {
         "jobId": job_id,
         "status": "PENDING",
-        "filename": filename
+        "filename": filenames[0],
+        "fileCount": len(filenames)
     }
 
-
-# ============================================================
-# STATO JOB
-# ============================================================
 
 @app.get("/ocr/batch/{job_id}")
 def get_batch_status(job_id: str):
 
     if job_id not in jobs:
-
         raise HTTPException(
             status_code=404,
             detail="Job non trovato"
@@ -182,19 +158,15 @@ def get_batch_status(job_id: str):
     return {
         "jobId": job_id,
         "status": jobs[job_id]["status"],
-        "filename": jobs[job_id]["filename"]
+        "filename": jobs[job_id]["filenames"][0],
+        "fileCount": len(jobs[job_id]["filenames"])
     }
 
-
-# ============================================================
-# RISULTATO OCR
-# ============================================================
 
 @app.get("/ocr/batch/{job_id}/result")
 def get_batch_result(job_id: str):
 
     if job_id not in jobs:
-
         raise HTTPException(
             status_code=404,
             detail="Job non trovato"
@@ -202,9 +174,7 @@ def get_batch_result(job_id: str):
 
     job = jobs[job_id]
 
-    # OCR non ancora terminato
     if job["status"] != "COMPLETED":
-
         return {
             "jobId": job_id,
             "status": job["status"],
@@ -212,9 +182,9 @@ def get_batch_result(job_id: str):
             "error": job.get("error")
         }
 
-    # OCR completato
     return {
         "jobId": job_id,
         "status": "COMPLETED",
         "result": job["result"]
     }
+

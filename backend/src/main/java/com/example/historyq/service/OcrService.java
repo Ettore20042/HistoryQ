@@ -23,18 +23,36 @@ public class OcrService {
                 .retrieve()
                 .body(String.class);
     }
-    public OcrJobResponse submitJob(MultipartFile file) {
-        MultipartBodyBuilder bodyBuilder = new MultipartBodyBuilder();
-        bodyBuilder.part("file", file.getResource());
+
+    public OcrJobResponse submitJob(
+            MultipartFile[] files
+    ) {
+        if (files == null || files.length == 0) {
+            throw new IllegalArgumentException(
+                    "Nessun file da inviare al servizio OCR."
+            );
+        }
+
+        MultipartBodyBuilder bodyBuilder =
+                new MultipartBodyBuilder();
+
+        for (MultipartFile file : files) {
+            bodyBuilder.part(
+                    "files",
+                    file.getResource()
+            );
+        }
+
         return restClient
                 .post()
                 .uri("/ocr/batch")
                 .body(bodyBuilder.build())
                 .retrieve()
                 .body(OcrJobResponse.class);
-
-
     }
+
+
+
     public OcrJobStatusResponse getJobStatus(UUID jobId) {
         return restClient
                 .get()
