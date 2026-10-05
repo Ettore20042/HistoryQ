@@ -10,6 +10,8 @@
         import org.springframework.http.ResponseEntity;
         import org.springframework.web.bind.annotation.*;
         import org.springframework.web.multipart.MultipartFile;
+        import org.springframework.web.bind.annotation.GetMapping;
+        import java.util.Map;
 
         import java.util.Map;
         import java.util.UUID;
@@ -113,5 +115,33 @@
                             );
                 }
             }
-        }
+            @GetMapping("/{documentId}/status")
+            public ResponseEntity<?> getStatus(
+                    @PathVariable UUID documentId
+            ) {
+                try {
+                    Document document = documentRepository.findById(documentId)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "Documento non trovato: " + documentId
+                                    )
+                            );
 
+                    return ResponseEntity.ok(Map.of(
+                            "status", document.getStatus(),
+                            "progress", document.getProgress()
+                    ));
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body("Richiesta non valida: " + e.getMessage());
+
+                } catch (Exception e) {
+                    return ResponseEntity.internalServerError()
+                            .body(
+                                    "Errore durante il recupero dello stato del documento: "
+                                            + e.getMessage()
+                            );
+                }
+            }
+        }

@@ -2,7 +2,9 @@ package com.example.historyq.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
 
+@EnableAsync
 @Configuration
 public class RestClientConfig {
     @Bean

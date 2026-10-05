@@ -54,6 +54,39 @@ public class Document {
     @Column(name = "ragflow_chat_id", length = 128)
     private String ragflowChatId;
 
+    @Column(name = "status", nullable = false, length = 32)
+    private String status;
+
+    public int getPageCount() {
+        return pageCount;
+    }
+
+    public void setPageCount(int pageCount) {
+        this.pageCount = pageCount;
+    }
+
+    @Column(name = "page_count", nullable = false)
+    private int pageCount;
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public int getProgress() {
+        return progress;
+    }
+
+    public void setProgress(int progress) {
+        this.progress = progress;
+    }
+
+    @Column(name = "progress", nullable = false)
+    private int progress;
+
     public String getOcrText() {
         return ocrText;
     }

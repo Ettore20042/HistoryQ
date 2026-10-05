@@ -11,6 +11,13 @@ import java.io.InputStream;
 import io.minio.ListObjectsArgs;
 import io.minio.Result;
 import io.minio.messages.Item;
+import io.minio.GetObjectArgs;
+import io.minio.ListObjectsArgs;
+import io.minio.Result;
+import io.minio.messages.Item;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class DocumentStorageService {
@@ -52,6 +59,36 @@ public class DocumentStorageService {
 
         }
     }
+    public InputStream download(String objectName) throws Exception {
+        return minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .build()
+        );
+    }
+    public List<String> listObjects(String prefix) throws Exception {
+
+        List<String> objectNames = new ArrayList<>();
+
+        Iterable<Result<Item>> results =
+                minioClient.listObjects(
+                        ListObjectsArgs.builder()
+                                .bucket(bucket)
+                                .prefix(prefix)
+                                .recursive(true)
+                                .build()
+                );
+
+        for (Result<Item> result : results) {
+            objectNames.add(result.get().objectName());
+        }
+
+        objectNames.sort(String::compareTo);
+
+        return objectNames;
+    }
+
 
     public void delete(String objectName) throws Exception {
 
@@ -79,5 +116,11 @@ public class DocumentStorageService {
         }
 
         System.out.println("=== FINE ===");
+    }
+    public byte[] downloadBytes(String objectName) throws Exception {
+
+        try (InputStream inputStream = download(objectName)) {
+            return inputStream.readAllBytes();
+        }
     }
 }

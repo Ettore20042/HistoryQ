@@ -1,0 +1,2 @@
+ALTER TABLE documents
+    ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1;
