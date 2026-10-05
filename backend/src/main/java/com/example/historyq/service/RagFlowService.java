@@ -498,7 +498,7 @@ public class RagFlowService {
                 );
             }
             log.info(
-                    "Chat RAGFlow creata: {}",
+                    "Chat RAGFlow creata: {} per dataset {}",
                     chatId,
                     datasetId
             );
