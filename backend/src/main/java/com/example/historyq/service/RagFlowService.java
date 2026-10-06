@@ -311,6 +311,7 @@ public class RagFlowService {
                 .body(String.class);
 
         try {
+            // Parse the response body as JSON with Jackson library
             JsonNode root = objectMapper.readTree(responseBody);
 
             int code = root.path("code").asInt(-1);

@@ -49,7 +49,7 @@ public class DocumentService {
 
         String extension = originalFilename.substring(
                 originalFilename.lastIndexOf(".")
-        ).toLowerCase();
+        ).toLowerCase(); //Extraiamo l'estensione e la convertiamo in minuscolo per uniformità
 
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException(
@@ -92,10 +92,10 @@ public class DocumentService {
 
         document.setStoredFilename(
                 String.format(
-                        "0001%s",
+                        "0001%s", // Il primo file sarà sempre "0001" con la sua estensione
                         firstFile.getOriginalFilename()
                                 .substring(
-                                        firstFile.getOriginalFilename().lastIndexOf(".")
+                                        firstFile.getOriginalFilename().lastIndexOf(".")    // Estrazione dell'estensione
                                 )
                                 .toLowerCase()
                 )
@@ -133,7 +133,7 @@ public class DocumentService {
                 }
 
                 String storedFilename = String.format(
-                        "%04d%s",
+                        "%04d%s", // Formattiamo il numero della pagina con 4 cifre, es. "0001", "0002", ecc.
                         i + 1,
                         fileExtension
                 );

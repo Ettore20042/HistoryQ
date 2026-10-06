@@ -10,7 +10,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
+// Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
 @Service
 public class DocumentProcessingService {
 
@@ -46,11 +46,11 @@ public class DocumentProcessingService {
         try {
 
             // 1. Recupero delle pagine da Silo
-            List<byte[]> contents = new ArrayList<>();
+            List<byte[]> contents = new ArrayList<>(); //contiene i byte di tutte le pagine del documento
             List<String> filenames = new ArrayList<>();
 
             List<String> objectNames =
-                    storageService.listObjects(storagePath);
+                    storageService.listObjects(storagePath); //Dammi tutti gli oggetti in questo percorso di storage
 
             if (objectNames.size() != document.getPageCount()) {
                 throw new IllegalStateException(
@@ -71,7 +71,7 @@ public class DocumentProcessingService {
                     String filename =
                             objectName.substring(
                                     objectName.lastIndexOf("/") + 1
-                            );
+                            ); //trasformiamo il percorso completo in un semplice nome di file ES( pagina1.jpg)
 
                     filenames.add(filename);
                 }
@@ -79,7 +79,7 @@ public class DocumentProcessingService {
                 // Avvio OCR
                 document.setStatus("OCR_PROCESSING");
                 document.setProgress(20);
-                documentRepository.save(document);
+                documentRepository.save(document);// Aggiorna lo stato del documento a "OCR_PROCESSING" e salva il progresso al 20% nel database.
 
                 var ocrJob =
                         ocrService.submitJobFromStorageBytes(
@@ -107,7 +107,7 @@ public class DocumentProcessingService {
                     );
 
             UUID jobId =
-                    UUID.fromString(ocrJob.getJobId());
+                    UUID.fromString(ocrJob.getJobId()); // Otteniamo l'ID del job OCR come UUID
 
             var ocrStatus =
                     ocrService.getJobStatus(jobId);

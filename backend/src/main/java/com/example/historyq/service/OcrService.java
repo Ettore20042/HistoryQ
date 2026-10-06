@@ -71,7 +71,7 @@ public class OcrService {
         }
 
         MultipartBodyBuilder bodyBuilder =
-                new MultipartBodyBuilder();
+                new MultipartBodyBuilder(); // Creiamo un body multipart per la richiesta
 
         for (int i = 0; i < contents.size(); i++) {
 

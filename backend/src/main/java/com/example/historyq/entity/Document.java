@@ -24,7 +24,7 @@ public class Document {
     private String originalName;
 
     @Column(name = "stored_filename", nullable = false, length = 512)
-    private String storedFilename;
+    private String storedFilename; //questo è il nome del file salvato nel filesystem o nel bucket S3 deciso dal DocumentService
 
     @Column(name = "file_type", nullable = false, length = 64)
     private String fileType;

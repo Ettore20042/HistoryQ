@@ -10,7 +10,7 @@ public class RestClientConfig {
     @Bean
     public RestClient restClient() {
         return RestClient.builder()
-                .baseUrl("http://127.0.0.1:8000") // Replace with your OCR service URL;
+                .baseUrl("http://127.0.0.1:8000")
                 .build();
     }
     public String testConnection(){

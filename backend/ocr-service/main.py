@@ -81,6 +81,9 @@ def process_job(job_id: str):
         jobs[job_id]["status"] = "FAILED"
         jobs[job_id]["result"] = None
         jobs[job_id]["error"] = str(e)
+    finally:
+        for file_path in file_paths:
+            Path(file_path).unlink(missing_ok=True)
 
 
 @app.post("/ocr/batch")
