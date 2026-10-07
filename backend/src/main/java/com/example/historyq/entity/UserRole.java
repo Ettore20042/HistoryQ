@@ -22,6 +22,11 @@ public class UserRole {
         this.id = id;
     }
 
+    public UserRole(UserRoleId id, User user) {
+        this.id = id;
+        this.user = user;
+    }
+
     public User getUser() {
         return user;
     }

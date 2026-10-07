@@ -125,7 +125,7 @@ HistoryQ/
 │   │   ├── RagChat.vue
 │   │   └── CollectionChat.vue  # Chat collaborativa
 │   ├── services/
-│   │   ├── ragApi.ts
+│   │   ├── api.ts
 │   │   └── wsClient.ts         # Client WebSocket STOMP
 │   ├── stores/                 # Pinia stores
 │   └── router/

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { askQuestion } from '../services/ragApi'
+import { askQuestion } from '../services/api.ts'
 
 interface Message {
   id: string

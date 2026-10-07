@@ -37,18 +37,18 @@ public class UserRoleId implements Serializable {
         this.role = role;
     }
 
+    @Override
     public boolean equals(Object object) {
-        if (object == null || getClass() != object.getClass()) return false;
-        if (!super.equals(object)) return false;
+        if (this == object) return true;
 
-        UserRoleId that = (UserRoleId) object;
-        return java.util.Objects.equals(getUserId(), that.getUserId()) && java.util.Objects.equals(getRole(), that.getRole());
+        if (!(object instanceof UserRoleId that)) return false;
+
+        return Objects.equals(userId, that.userId)
+                && Objects.equals(role, that.role);
     }
 
+    @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + Objects.hashCode(getUserId());
-        result = 31 * result + Objects.hashCode(getRole());
-        return result;
+        return Objects.hash(userId, role);
     }
 }
