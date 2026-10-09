@@ -8,6 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -34,10 +36,11 @@ public class Document {
 
     @ManyToOne
     @JoinColumn(name = "uploaded_by"/*, nullable = false*/)
+    @JsonIgnore
     private User uploadedBy;
 
     @Column(name = "historical_date")
-    private LocalDate historicalDate;
+    private String historicalDate;
 
     @Column(length = 255)
     private String author;
@@ -56,6 +59,28 @@ public class Document {
 
     @Column(name = "status", nullable = false, length = 32)
     private String status;
+
+    @Column(name="display_name",nullable=false, length = 512)
+    private String displayName;
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    @Column(name="description",nullable=false,columnDefinition = "TEXT")
+    private String description;
 
     public int getPageCount() {
         return pageCount;
@@ -137,8 +162,12 @@ public class Document {
     public void setFileSizeBytes(long fileSizeBytes) { this.fileSizeBytes = fileSizeBytes; }
     public User getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(User uploadedBy) { this.uploadedBy = uploadedBy; }
-    public LocalDate getHistoricalDate() { return historicalDate; }
-    public void setHistoricalDate(LocalDate historicalDate) { this.historicalDate = historicalDate; }
+    @JsonProperty("createdBy")
+    public String getCreatedBy() {
+        return uploadedBy != null ? uploadedBy.getUsername() : null;
+    }
+    public String getHistoricalDate() { return historicalDate; }
+    public void setHistoricalDate(String historicalDate) { this.historicalDate = historicalDate; }
     public String getAuthor() { return author; }
     public void setAuthor(String author) { this.author = author; }
     public String getArchiveSource() { return archiveSource; }

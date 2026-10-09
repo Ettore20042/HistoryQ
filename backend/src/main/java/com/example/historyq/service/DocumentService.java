@@ -1,14 +1,20 @@
 package com.example.historyq.service;
 
 import com.example.historyq.entity.Document;
+import com.example.historyq.entity.User;
 import com.example.historyq.repository.DocumentRepository;
+import com.example.historyq.repository.UserRepository;
 import com.example.historyq.storage.DocumentStorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.List;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
+
 
 @Service
 public class DocumentService {
@@ -16,6 +22,7 @@ public class DocumentService {
     private final DocumentRepository documentRepository;
     private final DocumentStorageService storageService;
     private final DocumentProcessingService documentProcessingService;
+    private final UserRepository userRepository;
 
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of(".jpg", ".jpeg", ".png", ".tiff", ".webp");
@@ -23,15 +30,21 @@ public class DocumentService {
     public DocumentService(
             DocumentRepository documentRepository,
             DocumentStorageService storageService,
-            DocumentProcessingService documentProcessingService
+            DocumentProcessingService documentProcessingService,
+            UserRepository userRepository
     ) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.documentProcessingService = documentProcessingService;
+        this.userRepository = userRepository;
     }
 
-    public Document upload(MultipartFile[] files) throws Exception {
+    public Document upload(MultipartFile[] files,String displayName,String description,String historicalDate,String author,String archive_source) throws Exception {
 
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Utente non trovato"));
         // 1. Validazione dei file
         if (files == null || files.length == 0) {
             throw new IllegalArgumentException(
@@ -105,6 +118,12 @@ public class DocumentService {
         document.setFileSizeBytes(totalSize);
         document.setStoragePath(storagePath);
         document.setCreatedAt(OffsetDateTime.now());
+        document.setUploadedBy(user);
+        document.setDescription(description);
+        document.setDisplayName(displayName);
+        document.setHistoricalDate(historicalDate);
+        document.setAuthor(author);
+        document.setArchiveSource(archive_source);
 
         try {
 
@@ -168,4 +187,22 @@ public class DocumentService {
             throw e;
         }
     }
-}
+        /**
+         * Recupera i documenti caricati dall'utente corrente.
+         *
+         * @return Lista di documenti caricati dall'utente corrente.
+         */
+        public List<Document> getDocumentsForCurrentUser() {
+
+            Authentication authentication =
+                    SecurityContextHolder.getContext().getAuthentication();
+
+            String username = authentication.getName();
+
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() ->
+                            new IllegalStateException("Utente autenticato non trovato"));
+
+            return documentRepository.findByUploadedBy(user);
+        }
+    }

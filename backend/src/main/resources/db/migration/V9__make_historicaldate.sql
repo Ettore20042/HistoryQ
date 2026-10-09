@@ -1,0 +1,2 @@
+ALTER TABLE documents
+ALTER COLUMN historical_date TYPE VARCHAR(255);

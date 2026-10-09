@@ -7,6 +7,11 @@ import { ref } from 'vue'
 const selectedFiles = ref<File[]>([])
 const uploadProgress = ref<number>(0)
 const uploadStatus = ref<string>('')
+const description = ref<string>('')
+const displayName = ref<string>('')
+const historicalDate = ref<string>('')
+const author = ref<string>('')
+const archiveSource = ref<string>('')
 
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
@@ -18,7 +23,11 @@ function onFileSelected(event: Event) {
 
 async function handleUpload() {
   if (selectedFiles.value.length > 0) {
-    const document = await uploadDocument(selectedFiles.value)
+    if (!displayName.value || !description.value || !historicalDate.value || !author.value || !archiveSource.value) {
+      console.error('All fields are required.')
+      return
+    }
+    const document = await uploadDocument(selectedFiles.value, displayName.value, description.value,historicalDate.value,author.value,archiveSource.value)
     const id = document.id
 
     await pollDocumentStatus(id)
@@ -58,27 +67,27 @@ function pollDocumentStatus(id: string) {
 </script>
 
 <template>
-  <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <div class="border-b border-slate-100 px-5 py-5 sm:px-8">
+  <section class="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)]">
+    <div class="border-b border-slate-100 bg-gradient-to-br from-green-50/80 via-white to-white px-5 py-6 sm:px-8">
       <div class="flex items-start gap-4">
-        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-700 text-white shadow-lg shadow-green-700/20">
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4L8 8m-5 5v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4" />
           </svg>
         </div>
         <div>
-          <p class="text-xs font-semibold uppercase tracking-widest text-blue-700">Archivio HistoryQ</p>
-          <h2 class="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+          <p class="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Archivio HistoryQ</p>
+          <h2 class="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
             Carica documento
           </h2>
-          <p class="mt-1 text-sm leading-6 text-slate-500">
-            Aggiungi una o più immagini per iniziare l'elaborazione del documento storico.
+          <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+            Compila i dettagli e aggiungi le immagini del documento storico per iniziare l'elaborazione.
           </p>
         </div>
       </div>
     </div>
 
-    <div class="space-y-6 px-5 py-6 sm:px-8 sm:py-8">
+    <div class="space-y-7 px-5 py-6 sm:px-8 sm:py-8">
       <input
           id="document-file"
           type="file"
@@ -87,27 +96,74 @@ function pollDocumentStatus(id: string) {
           class="hidden"
           multiple
       />
+      <div class="grid gap-5 sm:grid-cols-2">
+        <label class="space-y-2">
+          <span class="text-sm font-semibold text-slate-700">Nome del documento</span>
+          <input
+              v-model="displayName"
+              placeholder="Es. Lettera del 1850"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
+          />
+        </label>
+
+        <label class="space-y-2">
+          <span class="text-sm font-semibold text-slate-700">Data storica</span>
+          <input
+              v-model="historicalDate"
+              placeholder="Es. 1850"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
+          />
+        </label>
+
+        <label class="space-y-2">
+          <span class="text-sm font-semibold text-slate-700">Autore</span>
+          <input
+              v-model="author"
+              placeholder="Nome dell'autore"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
+          />
+        </label>
+
+        <label class="space-y-2">
+          <span class="text-sm font-semibold text-slate-700">Fonte dell'archivio</span>
+          <input
+              v-model="archiveSource"
+              placeholder="Es. Archivio comunale"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
+          />
+        </label>
+
+        <label class="space-y-2 sm:col-span-2">
+          <span class="text-sm font-semibold text-slate-700">Descrizione</span>
+          <textarea
+              v-model="description"
+              rows="3"
+              placeholder="Aggiungi una breve descrizione del documento"
+              class="w-full resize-y rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
+          ></textarea>
+        </label>
+      </div>
 
       <label
           for="document-file"
-          class="group flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-center transition-colors hover:border-blue-400 hover:bg-blue-50/40"
+          class="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-5 py-9 text-center transition-all hover:border-green-400 hover:bg-green-50/40"
       >
-        <span class="flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition-colors group-hover:text-blue-700">
+        <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-green-600 shadow-sm ring-1 ring-slate-200 transition-all group-hover:-translate-y-0.5 group-hover:text-green-700">
           <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4L8 8m-5 5v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4" />
           </svg>
         </span>
-        <span class="mt-4 text-sm font-semibold text-slate-800">Seleziona i file da archiviare</span>
-        <span class="mt-1 text-sm text-slate-500">JPG, PNG, TIFF o WEBP · selezione multipla disponibile</span>
-        <span class="mt-5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors group-hover:border-blue-200 group-hover:text-blue-700">
+        <span class="mt-4 text-base font-semibold text-slate-800">Seleziona i file da archiviare</span>
+        <span class="mt-1 max-w-md text-sm leading-6 text-slate-500">JPG, PNG, TIFF o WEBP · puoi selezionare più immagini contemporaneamente</span>
+        <span class="mt-5 rounded-xl bg-green-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all group-hover:bg-green-800 group-hover:shadow-md">
           Scegli file
         </span>
       </label>
 
-      <div v-if="selectedFiles.length > 0" class="rounded-xl border border-slate-200 bg-white">
-        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <div v-if="selectedFiles.length > 0" class="overflow-hidden rounded-2xl border border-green-100 bg-green-50/30">
+        <div class="flex items-center justify-between border-b border-green-100 px-4 py-3">
           <p class="text-sm font-semibold text-slate-800">File selezionati</p>
-          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+          <span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
             {{ selectedFiles.length }} {{ selectedFiles.length === 1 ? 'file' : 'file' }}
           </span>
         </div>
@@ -115,9 +171,9 @@ function pollDocumentStatus(id: string) {
           <li
               v-for="file in selectedFiles"
               :key="file.name"
-              class="flex items-center gap-3 px-4 py-3"
+              class="flex items-center gap-3 border-white/70 px-4 py-3"
           >
-            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[10px] font-bold uppercase text-blue-700">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold uppercase text-green-700 shadow-sm ring-1 ring-green-100">
               {{ file.name.split('.').pop() }}
             </span>
             <span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{{ file.name }}</span>
@@ -130,9 +186,9 @@ function pollDocumentStatus(id: string) {
           type="button"
           @click="handleUpload"
           :class="selectedFiles.length > 0
-            ? 'bg-blue-700 text-white shadow-sm hover:bg-blue-800 focus:ring-blue-500'
+            ? 'bg-green-700 text-white shadow-lg shadow-green-700/20 hover:bg-green-800 focus:ring-green-500'
             : 'cursor-not-allowed bg-slate-100 text-slate-400'"
-          class="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto"
+          class="flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto"
       >
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0 4 4m-4-4L8 8m-5 5v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4" />
@@ -140,12 +196,12 @@ function pollDocumentStatus(id: string) {
         <span>Carica Documento</span>
       </button>
 
-      <div v-if="uploadStatus" class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+      <div v-if="uploadStatus" class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex items-center gap-2">
             <span
                 class="h-2 w-2 rounded-full"
-                :class="uploadStatus === 'ERROR' ? 'bg-red-500' : uploadStatus === 'READY' ? 'bg-emerald-500' : 'bg-blue-600'"
+                :class="uploadStatus === 'ERROR' ? 'bg-red-500' : uploadStatus === 'READY' ? 'bg-emerald-500' : 'bg-green-600'"
             ></span>
             <span v-if="uploadStatus === 'PROCESSING'" class="text-sm font-semibold text-slate-800">Elaborazione documento</span>
             <span v-else-if="uploadStatus === 'OCR_PROCESSING'" class="text-sm font-semibold text-slate-800">Riconoscimento del testo</span>
@@ -159,7 +215,7 @@ function pollDocumentStatus(id: string) {
         </div>
         <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200">
           <div
-              class="h-full rounded-full bg-blue-600 transition-all duration-500"
+              class="h-full rounded-full bg-green-600 transition-all duration-500"
               :class="{ 'bg-emerald-500': uploadStatus === 'READY', 'bg-red-500': uploadStatus === 'ERROR' }"
               :style="{ width: uploadProgress + '%' }"
           ></div>

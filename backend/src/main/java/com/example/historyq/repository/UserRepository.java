@@ -2,6 +2,9 @@ package com.example.historyq.repository;
 
 import com.example.historyq.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+import java.util.UUID;
 
 import java.util.UUID;
 

@@ -12,6 +12,11 @@
         import org.springframework.web.multipart.MultipartFile;
         import org.springframework.web.bind.annotation.GetMapping;
         import java.util.Map;
+        import org.springframework.http.HttpHeaders;
+        import org.springframework.http.MediaType;
+        import org.springframework.http.ResponseEntity;
+        import com.example.historyq.storage.DocumentStorageService;
+        import java.io.InputStream;
 
         import java.util.Map;
         import java.util.UUID;
@@ -23,15 +28,18 @@
             private final DocumentService documentService;
             private final DocumentRepository documentRepository;
             private final RagFlowService ragFlowService;
+            private final DocumentStorageService documentStorageService;
 
             public DocumentStorageController(
                     DocumentService documentService,
                     DocumentRepository documentRepository,
-                    RagFlowService ragFlowService
+                    RagFlowService ragFlowService,
+                    DocumentStorageService documentStorageService
             ) {
                 this.documentService = documentService;
                 this.documentRepository = documentRepository;
                 this.ragFlowService = ragFlowService;
+                this.documentStorageService = documentStorageService;
             }
 
             /**
@@ -39,12 +47,17 @@
              */
             @PostMapping("/upload")
             public ResponseEntity<?> upload(
-                    @RequestParam("files") MultipartFile[] files
+                    @RequestParam("files") MultipartFile[] files,
+                    @RequestParam("description") String description,
+                    @RequestParam("displayName") String displayName,
+                    @RequestParam("historicalDate") String historicalDate,
+                    @RequestParam("author") String author,
+                    @RequestParam("archive_source") String archive_source
             ) {
                 try {
 
                     Document document =
-                            documentService.upload(files);
+                            documentService.upload(files, displayName, description, historicalDate, author, archive_source);
 
                     return ResponseEntity.ok(document);
 
@@ -144,4 +157,69 @@
                             );
                 }
             }
+            @GetMapping
+            public ResponseEntity<?> getDocuments() {
+                try {
+                    return ResponseEntity.ok(
+                            documentService.getDocumentsForCurrentUser()
+                    );
+
+                } catch (Exception e) {
+                    return ResponseEntity.internalServerError()
+                            .body(
+                                    "Errore durante il recupero dei documenti: "
+                                            + e.getMessage()
+                            );
+                }
+            }
+
+            @GetMapping("/{documentId}/preview")
+            public ResponseEntity<byte[]> getPreview(
+                    @PathVariable UUID documentId
+            ) {
+                try {
+                    Document document = documentRepository.findById(documentId)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "Documento non trovato: " + documentId
+                                    )
+                            );
+
+                    String prefix = "documents/" + documentId + "/pages/";
+
+                    var objects = documentStorageService.listObjects(prefix);
+
+                    if (objects.isEmpty()) {
+                        return ResponseEntity.notFound().build();
+                    }
+
+                    String firstPage = objects.get(0);
+
+                    byte[] image = documentStorageService.downloadBytes(firstPage);
+
+                    MediaType mediaType = MediaType.IMAGE_JPEG;
+
+                    if (firstPage.toLowerCase().endsWith(".png")) {
+                        mediaType = MediaType.IMAGE_PNG;
+                    }
+
+                    return ResponseEntity.ok()
+                            .header(
+                                    HttpHeaders.CONTENT_DISPOSITION,
+                                    "inline"
+                            )
+                            .contentType(mediaType)
+                            .body(image);
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.notFound().build();
+
+                } catch (Exception e) {
+                    return ResponseEntity.internalServerError().build();
+                }
+            }
+
+
+
         }
+
