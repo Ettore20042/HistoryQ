@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.example.historyq.dto.OcrJobResultResponse;
 // Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
 @Service
 public class DocumentProcessingService {
@@ -163,20 +164,49 @@ public class DocumentProcessingService {
             document.setProgress(50);
             documentRepository.save(document);
 
-            String originalFilename =
-                    document.getOriginalName();
+            String storedFilename =
+                    document.getStoredFilename();
 
             String ragflowDatasetId =
                     ragFlowService.createDataset(
-                            originalFilename
+                            storedFilename
                     );
 
-            String ragflowDocumentId =
-                    ragFlowService.uploadOcrText(
-                            ragflowDatasetId,
-                            originalFilename,
-                            ocrResult.getResult()
+            List<String> ragflowDocumentIds = new ArrayList<>();
+            List<OcrJobResultResponse.PageResult> pageResults = ocrResult.getPages();
+
+            if (pageResults != null && !pageResults.isEmpty()) {
+                for (OcrJobResultResponse.PageResult pageResult : pageResults) {
+                    if (pageResult.getFilename() == null
+                            || pageResult.getFilename().isBlank()
+                            || pageResult.getText() == null
+                            || pageResult.getText().isBlank()) {
+                        continue;
+                    }
+
+                    ragflowDocumentIds.add(
+                            ragFlowService.uploadOcrText(
+                                    ragflowDatasetId,
+                                    pageResult.getFilename(),
+                                    pageResult.getText()
+                            )
                     );
+                }
+            } else {
+                ragflowDocumentIds.add(
+                        ragFlowService.uploadOcrText(
+                                ragflowDatasetId,
+                                storedFilename,
+                                ocrResult.getResult()
+                        )
+                );
+            }
+
+            if (ragflowDocumentIds.isEmpty()) {
+                throw new IllegalStateException(
+                        "Nessuna pagina OCR valida da caricare in RAGFlow."
+                );
+            }
 
             document.setRagflowDatasetId(
                     ragflowDatasetId
@@ -186,22 +216,26 @@ public class DocumentProcessingService {
             documentRepository.save(document);
 
             // 5. Parsing RAGFlow
-            ragFlowService.parseDocument(
-                    ragflowDatasetId,
-                    ragflowDocumentId
-            );
+            for (String ragflowDocumentId : ragflowDocumentIds) {
+                ragFlowService.parseDocument(
+                        ragflowDatasetId,
+                        ragflowDocumentId
+                );
+            }
 
-            ragFlowService.waitUntilParsed(
-                    ragflowDatasetId,
-                    ragflowDocumentId
-            );
+            for (String ragflowDocumentId : ragflowDocumentIds) {
+                ragFlowService.waitUntilParsed(
+                        ragflowDatasetId,
+                        ragflowDocumentId
+                );
+            }
 
             document.setProgress(90);
             documentRepository.save(document);
 
             // 6. Creazione Chat
             String ragflowChatName =
-                    originalFilename + "-" + documentId;
+                    storedFilename + "-" + documentId;
 
             String ragflowChatId =
                     ragFlowService.createChat(

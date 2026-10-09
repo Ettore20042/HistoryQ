@@ -1,28 +1,74 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
-import { askQuestion } from '../services/api.ts'
+import { ref, nextTick, onMounted } from 'vue'
+import { askDocumentQuestion } from '../services/api'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const documentId = route.params.id as string
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   text: string
   timestamp: string
-  citations?: Array<unknown>
+  citations?: Citation[]
 }
 
-const messages = ref<Message[]>([
-  {
+type Citation = string | Record<string, unknown>
+
+const chatStorageKey = `historyq_chat_${documentId}`
+
+interface AnswerTable {
+  headers: string[]
+  rows: string[][]
+}
+
+type AnswerBlock =
+  | { type: 'text'; value: string }
+  | { type: 'table'; value: AnswerTable }
+
+const emit = defineEmits<{
+  (event: 'citation-page', filename: string): void
+}>()
+
+function createWelcomeMessage(): Message {
+  return {
     id: 'welcome',
     role: 'assistant',
     text: 'Ciao! Sono historyGenie. Poni una domanda sui documenti caricati nel dataset RAGFlow.',
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  },
-])
+  }
+}
+
+const messages = ref<Message[]>([createWelcomeMessage()])
 
 const inputQuery = ref('')
 const isLoading = ref(false)
 const chatContainerRef = ref<HTMLElement | null>(null)
 const errorAlert = ref<string | null>(null)
+
+function saveMessages() {
+  localStorage.setItem(chatStorageKey, JSON.stringify(messages.value))
+}
+
+function restoreMessages() {
+  const savedMessages = localStorage.getItem(chatStorageKey)
+  if (!savedMessages) return
+
+  try {
+    const parsedMessages: unknown = JSON.parse(savedMessages)
+    if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+      messages.value = parsedMessages as Message[]
+    }
+  } catch {
+    localStorage.removeItem(chatStorageKey)
+  }
+}
+
+onMounted(() => {
+  restoreMessages()
+  void scrollToBottom()
+})
 
 async function scrollToBottom() {
   await nextTick() // Assicurati che il DOM sia aggiornato prima di scorrere
@@ -45,12 +91,13 @@ async function handleSendMessage() {
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   }
   messages.value.push(userMessage)
+  saveMessages()
   inputQuery.value = ''
   isLoading.value = true
   await scrollToBottom()
 
   try {
-    const response = await askQuestion(query)
+    const response = await askDocumentQuestion(documentId, query)
     const assistantMessage: Message = {
       id: 'res-' + Date.now(),
       role: 'assistant',
@@ -59,6 +106,7 @@ async function handleSendMessage() {
       citations: response.citations,
     }
     messages.value.push(assistantMessage)
+    saveMessages()
   } catch (err) {
     const errorText = err instanceof Error ? err.message : 'Errore durante la richiesta alla chat.'
     errorAlert.value = errorText
@@ -68,6 +116,7 @@ async function handleSendMessage() {
       text: `⚠️ Impossibile completare la richiesta: ${errorText}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     })
+    saveMessages()
   } finally {
     isLoading.value = false
     await scrollToBottom()
@@ -83,7 +132,101 @@ function clearChat() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]
+  localStorage.removeItem(chatStorageKey)
   errorAlert.value = null
+}
+
+function citationText(citation: Citation) {
+  if (typeof citation === 'string') return citation
+
+  const content = citation.content
+  if (typeof content === 'string' && content.trim()) {
+    return content.trim()
+  }
+
+  return 'Riferimento recuperato da RAGFlow'
+}
+
+function citationSource(citation: Citation) {
+  if (typeof citation === 'string') return citation
+
+  const documentName = citation.document_name
+  if (typeof documentName === 'string' && documentName.trim()) {
+    return documentName.replace(/\.txt$/i, '')
+  }
+
+  return 'Fonte RAGFlow'
+}
+
+function citationPreview(citation: Citation) {
+  const text = citationText(citation)
+  return text.length > 220 ? `${text.slice(0, 220).trim()}...` : text
+}
+
+function splitTableRow(line: string) {
+  const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '')
+  return trimmed.split('|').map(cell => cell.trim())
+}
+
+function isTableSeparator(line: string) {
+  return splitTableRow(line).every(cell => /^:?-{3,}:?$/.test(cell))
+}
+
+function answerBlocks(text: string): AnswerBlock[] {
+  const lines = text.split(/\r?\n/)
+  const blocks: AnswerBlock[] = []
+  let textLines: string[] = []
+
+  const flushText = () => {
+    if (textLines.length > 0) {
+      blocks.push({ type: 'text', value: textLines.join('\n') })
+      textLines = []
+    }
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = lines[index]
+    const separator = lines[index + 1]
+
+    if (
+      header?.includes('|')
+      && separator
+      && separator.includes('|')
+      && isTableSeparator(separator ?? '')
+    ) {
+      const rows: string[][] = []
+      let rowIndex = index + 2
+
+      while (rowIndex < lines.length && lines[rowIndex]?.includes('|')) {
+        rows.push(splitTableRow(lines[rowIndex] ?? ''))
+        rowIndex += 1
+      }
+
+      flushText()
+      blocks.push({
+        type: 'table',
+        value: {
+          headers: splitTableRow(header),
+          rows,
+        },
+      })
+      index = rowIndex - 1
+      continue
+    }
+
+    textLines.push(lines[index] ?? '')
+  }
+
+  flushText()
+  return blocks
+}
+
+function openCitation(citation: Citation) {
+  if (typeof citation !== 'string'
+      && typeof citation.pageFilename === 'string'
+      && citation.pageFilename) {
+    emit('citation-page', citation.pageFilename)
+  }
 }
 </script>
 
@@ -145,7 +288,50 @@ function clearChat() {
                 : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-2xl rounded-bl-xs shadow-xs'
             ]"
           >
-            <p class="whitespace-pre-wrap select-text">{{ msg.text }}</p>
+            <div class="space-y-3 select-text">
+              <template v-for="(block, blockIndex) in answerBlocks(msg.text)" :key="blockIndex">
+                <p
+                  v-if="block.type === 'text'"
+                  class="whitespace-pre-wrap"
+                >
+                  {{ block.value }}
+                </p>
+
+                <div
+                  v-else
+                  class="max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white"
+                >
+                  <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                    <thead class="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th
+                          v-for="(header, headerIndex) in block.value.headers"
+                          :key="headerIndex"
+                          class="whitespace-nowrap px-3 py-2 font-semibold"
+                        >
+                          {{ header }}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                      <tr
+                        v-for="(row, rowIndex) in block.value.rows"
+                        :key="rowIndex"
+                        class="align-top even:bg-slate-50"
+                      >
+                        <td
+                          v-for="(cell, cellIndex) in row"
+                          :key="cellIndex"
+                          class="min-w-40 px-3 py-2 leading-relaxed text-slate-700"
+                        >
+                          {{ cell }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+            </div>
 
             <!-- Eventuali citazioni/fonti -->
             <div
@@ -153,11 +339,34 @@ function clearChat() {
               class="mt-2.5 pt-2 border-t border-slate-200 text-xs text-slate-500"
             >
               <span class="font-semibold block mb-1">Fonti consultate:</span>
-              <ul class="space-y-0.5 list-disc list-inside">
-                <li v-for="(cit, idx) in msg.citations" :key="idx" class="truncate">
-                  {{ typeof cit === 'string' ? cit : JSON.stringify(cit) }}
-                </li>
-              </ul>
+              <div class="mt-2 space-y-2">
+                <article
+                  v-for="(cit, idx) in msg.citations"
+                  :key="idx"
+                  class="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="truncate font-medium text-slate-700">
+                        {{ citationSource(cit) }}
+                      </p>
+                      <p class="mt-1 line-clamp-3 text-[11px] leading-relaxed text-slate-500">
+                        {{ citationPreview(cit) }}
+                      </p>
+                    </div>
+
+                    <button
+                      v-if="typeof cit !== 'string' && cit.pageFilename"
+                      type="button"
+                      class="shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                      title="Apri la pagina originale"
+                      @click="openCitation(cit)"
+                    >
+                      Apri pagina
+                    </button>
+                  </div>
+                </article>
+              </div>
             </div>
           </div>
         </div>

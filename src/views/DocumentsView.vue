@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 import DocumentUpload from '../components/DocumentUpload.vue'
 import { getDocuments, getDocumentPreview } from '../services/api'
 
+
 interface DocumentItem {
   id: string
   originalName: string
@@ -128,7 +129,9 @@ onBeforeUnmount(() => {
         <article
             v-for="document in documents"
             :key="document.id"
-            class="border border-slate-200 bg-white p-5 shadow-sm"
+            class="border border-slate-200 bg-white p-5 shadow-sm hover:cursor-pointer hover:border-green-600 hover:ring-1 hover:ring-blue-600/10"
+            @click="() => $router.push({ path: `/documents/${document.id}` })"
+
         >
           <img
               :src="previewUrls[document.id]"

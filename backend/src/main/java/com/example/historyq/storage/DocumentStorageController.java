@@ -17,6 +17,9 @@
         import org.springframework.http.ResponseEntity;
         import com.example.historyq.storage.DocumentStorageService;
         import java.io.InputStream;
+        import org.springframework.http.HttpStatus;
+        import java.util.List;
+
 
         import java.util.Map;
         import java.util.UUID;
@@ -111,7 +114,11 @@
                     Map<String, Object> result =
                             ragFlowService.askQuestion(
                                     chatId,
-                                    question
+                                    question,
+                                    documentStorageService.listObjects(document.getStoragePath())
+                                            .stream()
+                                            .map(objectName -> objectName.substring(objectName.lastIndexOf("/") + 1))
+                                            .toList()
                             );
 
                     return ResponseEntity.ok(result);
@@ -218,6 +225,111 @@
                     return ResponseEntity.internalServerError().build();
                 }
             }
+
+            @GetMapping("/{documentId}/transcription")
+            public ResponseEntity<?> getTranscription(
+                    @PathVariable UUID documentId
+            ) {
+                var optionalDocument = documentRepository.findById(documentId);
+
+                if (optionalDocument.isEmpty()) {
+                    return ResponseEntity.notFound().build();
+                }
+
+                Document document = optionalDocument.get();
+
+                if (!"READY".equals(document.getStatus())) {
+                    return ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body("La trascrizione non è ancora disponibile. Stato: "
+                                    + document.getStatus());
+                }
+
+                return ResponseEntity.ok(Map.of(
+                        "transcription",
+                        document.getOcrText() == null ? "" : document.getOcrText()
+                ));
+            }
+
+            @GetMapping("/{documentId}/pages")
+            public ResponseEntity<List<String>> getPages(
+                    @PathVariable UUID documentId
+            ) {
+                try {
+                    documentRepository.findById(documentId)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "Documento non trovato: " + documentId
+                                    )
+                            );
+
+                    String prefix = "documents/" + documentId + "/pages/";
+
+                    List<String> objects = documentStorageService.listObjects(prefix);
+
+                    List<String> pageNames = objects.stream()
+                            .map(objectName -> objectName.substring(prefix.length()))
+                            .toList();
+
+                    return ResponseEntity.ok(pageNames);
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.notFound().build();
+
+                } catch (Exception e) {
+                    return ResponseEntity.internalServerError().build();
+                }
+            }
+
+            @GetMapping("/{documentId}/pages/image/{filename:.+}")
+            public ResponseEntity<byte[]> getDocumentPage(
+                    @PathVariable UUID documentId,
+                    @PathVariable String filename
+            ) {
+                try {
+                    documentRepository.findById(documentId)
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "Documento non trovato: " + documentId
+                                    )
+                            );
+
+                    // Accettiamo soltanto nomi di file semplici e immagini supportate.
+                    if (!filename.matches("[A-Za-z0-9._-]+")
+                            || filename.contains("..")) {
+                        return ResponseEntity.badRequest().build();
+                    }
+
+                    String lowerFilename = filename.toLowerCase();
+
+                    MediaType mediaType;
+                    if (lowerFilename.endsWith(".jpg")
+                            || lowerFilename.endsWith(".jpeg")) {
+                        mediaType = MediaType.IMAGE_JPEG;
+                    } else if (lowerFilename.endsWith(".png")) {
+                        mediaType = MediaType.IMAGE_PNG;
+                    } else {
+                        return ResponseEntity.badRequest().build();
+                    }
+
+                    String objectName =
+                            "documents/" + documentId + "/pages/" + filename;
+
+                    byte[] image = documentStorageService.downloadBytes(objectName);
+
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                            .contentType(mediaType)
+                            .body(image);
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.notFound().build();
+
+                } catch (Exception e) {
+                    return ResponseEntity.internalServerError().build();
+                }
+            }
+
+
 
 
 

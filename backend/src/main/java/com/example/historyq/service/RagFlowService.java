@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
 import java.nio.charset.StandardCharsets;
 
 @Service
@@ -50,6 +52,14 @@ public class RagFlowService {
     public Map<String, Object> askQuestion(
             String chatId,
             String question
+    ) {
+        return askQuestion(chatId, question, Collections.emptyList());
+    }
+
+    public Map<String, Object> askQuestion(
+            String chatId,
+            String question,
+            List<String> pageFilenames
     ) {
         if (chatId == null || chatId.isBlank()) {
             throw new IllegalArgumentException(
@@ -92,7 +102,10 @@ public class RagFlowService {
 
         String answer = extractAnswer(responseBody);
 
-        List<?> citations = extractCitations(responseBody);
+        List<?> citations = addPageReferences(
+                extractCitations(responseBody),
+                pageFilenames
+        );
 
         Map<String, Object> result = new LinkedHashMap<>();
 
@@ -112,6 +125,51 @@ public class RagFlowService {
         );
 
         return result;
+    }
+
+    private List<?> addPageReferences(
+            List<?> citations,
+            List<String> pageFilenames
+    ) {
+        if (citations.isEmpty() || pageFilenames == null || pageFilenames.isEmpty()) {
+            return citations;
+        }
+
+        Map<String, String> documentNames = new HashMap<>();
+        for (String pageFilename : pageFilenames) {
+            if (pageFilename != null && !pageFilename.isBlank()) {
+                documentNames.put(pageFilename + ".txt", pageFilename);
+            }
+        }
+
+        List<Object> enriched = new java.util.ArrayList<>();
+        for (Object citation : citations) {
+            if (!(citation instanceof Map<?, ?> citationMap)) {
+                enriched.add(citation);
+                continue;
+            }
+
+            Object documentName = citationMap.get("document_name");
+            String pageFilename = documentName instanceof String
+                    ? documentNames.get(documentName)
+                    : null;
+
+            if (pageFilename == null) {
+                enriched.add(citation);
+                continue;
+            }
+
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : citationMap.entrySet()) {
+                if (entry.getKey() instanceof String key) {
+                    copy.put(key, entry.getValue());
+                }
+            }
+            copy.put("pageFilename", pageFilename);
+            enriched.add(copy);
+        }
+
+        return enriched;
     }
 
 
@@ -163,6 +221,7 @@ public class RagFlowService {
         }
     }
 
+
     private List<?> extractCitations(String rawBody) {
         if (rawBody == null || rawBody.isBlank()) {
             return Collections.emptyList();
@@ -176,18 +235,31 @@ public class RagFlowService {
                 return objectMapper.convertValue(citations, List.class);
             }
 
-            JsonNode dataCitations = root.path("data").path("citations");
+            JsonNode data = root.path("data");
+
+            JsonNode dataCitations = data.path("citations");
             if (dataCitations.isArray()) {
                 return objectMapper.convertValue(dataCitations, List.class);
             }
 
-            JsonNode reference = root.path("data").path("reference");
+            JsonNode reference = data.path("reference");
+
             if (reference.isArray()) {
                 return objectMapper.convertValue(reference, List.class);
             }
 
+            JsonNode chunks = reference.path("chunks");
+            if (chunks.isArray()) {
+                return objectMapper.convertValue(chunks, List.class);
+            }
+
             return Collections.emptyList();
+
         } catch (Exception e) {
+            log.warn(
+                    "Errore parsing citazioni RAGFlow: {}",
+                    e.getMessage()
+            );
             return Collections.emptyList();
         }
     }

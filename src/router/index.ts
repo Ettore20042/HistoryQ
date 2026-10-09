@@ -5,6 +5,7 @@ import DocumentsView from '@/views/DocumentsView.vue'
 import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import { isAuthenticated } from '@/services/auth'
+import DocumentView from '@/views/DocumentView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -20,6 +21,7 @@ const router = createRouter({
         },
         { path: '/login', component: LoginView, meta: { guestOnly: true } },
         { path: '/register', component: RegisterView, meta: { guestOnly: true } },
+        { path: '/documents/:id', component: DocumentView, meta: { requiresAuth: true } },
     ],
 })
 

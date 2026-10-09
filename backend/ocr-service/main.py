@@ -41,6 +41,7 @@ def process_job(job_id: str):
         print(f"[OCR] Numero pagine: {len(file_paths)}")
 
         results = []
+        pages = []
 
         for index, file_path in enumerate(file_paths, start=1):
             print(
@@ -65,6 +66,10 @@ def process_job(job_id: str):
             )
 
             results.append(text)
+            pages.append({
+                "filename": jobs[job_id]["filenames"][index - 1],
+                "text": text
+            })
 
             print(f"[OCR] Pagina {index} completata")
 
@@ -74,6 +79,7 @@ def process_job(job_id: str):
 
         jobs[job_id]["status"] = "COMPLETED"
         jobs[job_id]["result"] = combined_text
+        jobs[job_id]["pages"] = pages
 
     except Exception as e:
         print(f"[OCR] Errore: {e}")
@@ -133,6 +139,7 @@ def create_batch(
         "filenames": filenames,
         "filepaths": file_paths,
         "result": None,
+        "pages": [],
         "error": None
     }
 
@@ -188,6 +195,6 @@ def get_batch_result(job_id: str):
     return {
         "jobId": job_id,
         "status": "COMPLETED",
-        "result": job["result"]
+        "result": job["result"],
+        "pages": job.get("pages", [])
     }
-

@@ -49,7 +49,10 @@ function handleLogout() {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-6xl flex-1 px-5 py-10 sm:px-8 sm:py-14">
+
+
+
+    <main class="mx-auto w-full max-w-[1350px] flex-1 px-3 py-6 sm:px-4 sm:py-8 lg:px-5">
       <RouterView />
     </main>
 
