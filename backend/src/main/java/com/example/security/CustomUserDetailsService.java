@@ -29,7 +29,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() ->
                         new UsernameNotFoundException("Utente non trovato"));
-
+        // Recupera i ruoli dell'utente e li mappa in SimpleGrantedAuthority
         List<SimpleGrantedAuthority> authorities = userRoleRepository.findAllByIdUserId(user.getId())
                 .stream()
                 .map(role -> new SimpleGrantedAuthority(role.getId().getRole()))

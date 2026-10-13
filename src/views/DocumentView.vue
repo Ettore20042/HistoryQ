@@ -49,6 +49,8 @@ const pageInput=ref('1')
 const pageUrls=ref<Record<string,string>>({})
 const pageLoading=ref(false)
 const pageError=ref('')
+
+
 /*
   Carica il documento e le informazioni correlate.
   Parallelizza le richieste di anteprima e trascrizione.
@@ -179,10 +181,10 @@ function goToCitationPage(filename: string) {
     void loadPage(pageIndex)
   }
 }
-
+// Carica il documento quando il componente viene montato
 onMounted(loadDocument)
 
-
+// Pulizia delle risorse quando il componente viene smontato
 onBeforeUnmount(() => {
   for (const url of Object.values(pageUrls.value)) {
     URL.revokeObjectURL(url)
@@ -321,11 +323,42 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <!-- Qui inseriremo la trascrizione OCR nel prossimo passaggio -->
+
+        <div class="border-t border-slate-200 px-5 py-4">
+          <h3 class="mb-2 text-sm font-semibold text-slate-800">
+            Trascrizione del documento
+          </h3>
+
+          <button
+              type="button"
+              class="mb-3 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              @click="showTranscription = !showTranscription"
+          >
+            {{ showTranscription ? 'Nascondi' : 'Mostra' }} trascrizione
+          </button>
+
+          <p v-if="transcriptionError" class="text-sm text-red-600">
+            {{ transcriptionError }}
+          </p>
+
+          <div
+              v-else-if="showTranscription && transcription"
+              class="max-h-[500px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4"
+          >
+            <pre class="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{{ transcription }}</pre>
+          </div>
+
+          <p
+              v-else-if="showTranscription"
+              class="text-sm text-slate-500"
+          >
+            Trascrizione vuota o non disponibile.
+          </p>
+        </div>
       </div>
 
 
-      <!-- Colonna destra: chat AI -->
+        <!-- Colonna destra: chat AI -->
       <div class="min-w-0">
         <RagChat @citation-page="goToCitationPage" />
       </div>

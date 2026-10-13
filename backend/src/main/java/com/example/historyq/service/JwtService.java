@@ -21,6 +21,7 @@ public class JwtService {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration:86400000}") long expiration
     ) {
+        //decodifica la chiave segreta in base64 e crea un oggetto SecretKey
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
         this.expiration = expiration;
     }

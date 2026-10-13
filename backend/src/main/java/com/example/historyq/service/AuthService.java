@@ -25,7 +25,7 @@ import java.time.OffsetDateTime;
 @Service
 public class AuthService {
 
-    private static final String ROLE = "USER";
+    private static final String ROLE = "ROLE_USER";
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
@@ -73,7 +73,7 @@ public class AuthService {
                 .password(savedUser.getPasswordHash())
                 .authorities(ROLE)
                 .build();
-        return new AuthResponse(jwtService.generateToken(details), savedUser.getUsername(), "USER");
+        return new AuthResponse(jwtService.generateToken(details), savedUser.getUsername(), "ROLE_USER");
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -93,6 +93,6 @@ public class AuthService {
                 .authorities(ROLE)
                 .disabled(!user.isEnabled())
                 .build();
-        return new AuthResponse(jwtService.generateToken(details), user.getUsername(), "USER");
+        return new AuthResponse(jwtService.generateToken(details), user.getUsername(), "ROLE_USER");
     }
 }
