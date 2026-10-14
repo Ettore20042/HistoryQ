@@ -5,8 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getDocuments,
   getDocumentTranscription,
-    getDocumentPages,
-    getDocumentPage,
+  getDocumentPages,
+  getDocumentPage, getDocumentStatus,
 } from '@/services/api'
 import RagChat from '@/components/RagChat.vue'
 
@@ -33,6 +33,8 @@ const router = useRouter()
 const documentId = computed(() => String(route.params.id))
 
 const document = ref<DocumentItem | null>(null)
+const statusTimer=ref<ReturnType<typeof setTimeout> | null>(null)
+let componentUnmounted = false
 
 const transcription = ref('')
 const showTranscription = ref(false)
@@ -51,10 +53,10 @@ const pageLoading=ref(false)
 const pageError=ref('')
 
 
+
 /*
   Carica il documento e le informazioni correlate.
-  Parallelizza le richieste di anteprima e trascrizione.
-*/
+  */
 async function loadDocument() {
   loading.value = true
   error.value = ''
@@ -64,7 +66,7 @@ async function loadDocument() {
   try {
     const documents = await getDocuments()
     const foundDocument = documents.find(
-        item => item.id === documentId.value
+      item => item.id === documentId.value
     )
 
     if (!foundDocument) {
@@ -72,13 +74,10 @@ async function loadDocument() {
     }
 
     document.value = foundDocument
-    const [pagesResult, transcriptionResult] = await Promise.allSettled([
-      getDocumentPages(documentId.value),
-      getDocumentTranscription(documentId.value),
-    ])
 
-    if (pagesResult.status === 'fulfilled') {
-      pageNames.value = pagesResult.value
+    // Le immagini possono essere caricate anche durante l'elaborazione.
+    try {
+      pageNames.value = await getDocumentPages(documentId.value)
       console.log('Pagine disponibili in Silo:', pageNames.value)
 
       if (pageNames.value.length > 0) {
@@ -86,24 +85,71 @@ async function loadDocument() {
       } else {
         pageError.value = 'Il documento non contiene immagini.'
       }
-    } else {
+    } catch (err) {
       pageError.value = 'Impossibile recuperare le pagine del documento.'
+      console.error(err)
     }
 
-    if (transcriptionResult.status === 'fulfilled') {
-      transcription.value = transcriptionResult.value
-    } else {
-      transcriptionError.value = 'La trascrizione non è disponibile al momento.'
+    // La trascrizione viene caricata solo quando il documento è READY.
+    if (document.value.status === 'READY') {
+      await loadTranscription()
     }
+
+    // Aggiorna lo stato anche se il documento è già READY o ERROR.
+    void pollDocumentStatus()
   } catch (err) {
     error.value =
-        err instanceof Error
-            ? err.message
-            : 'Impossibile caricare il documento.'
+      err instanceof Error
+        ? err.message
+        : 'Impossibile caricare il documento.'
   } finally {
     loading.value = false
   }
 }
+
+async function loadTranscription() {
+  try {
+    transcription.value = await getDocumentTranscription(documentId.value)
+    transcriptionError.value = ''
+  } catch (err) {
+    transcriptionError.value =
+      'La trascrizione non è disponibile al momento.'
+    console.error(err)
+  }
+}
+
+async function pollDocumentStatus(): Promise<void> {
+  if (componentUnmounted || !document.value) return
+
+  try {
+    const result = await getDocumentStatus(documentId.value)
+
+    // Aggiorna lo stato visibile nella pagina.
+    document.value.status = result.status
+    document.value.progress = result.progress
+
+    if (result.status === 'READY') {
+      await loadTranscription()
+      return
+    }
+
+    if (result.status === 'ERROR') {
+      transcriptionError.value =
+        'Elaborazione non riuscita. La trascrizione non è disponibile.'
+      return
+    }
+  } catch (err) {
+    console.error('Errore nel recupero dello stato del documento:', err)
+  }
+
+  // Pianifica la richiesta successiva solo dopo aver terminato la precedente.
+  if (!componentUnmounted) {
+    statusTimer.value = setTimeout(() => {
+      void pollDocumentStatus()
+    }, 1500)
+  }
+}
+
 
 async function loadPage(index: number) {
   if (index < 0 || index >= pageNames.value.length) return
@@ -181,15 +227,22 @@ function goToCitationPage(filename: string) {
     void loadPage(pageIndex)
   }
 }
+
 // Carica il documento quando il componente viene montato
 onMounted(loadDocument)
 
 // Pulizia delle risorse quando il componente viene smontato
 onBeforeUnmount(() => {
+  componentUnmounted = true
+  if (statusTimer.value!==null) {
+    clearTimeout(statusTimer.value)
+    statusTimer.value=null
+  }
   for (const url of Object.values(pageUrls.value)) {
     URL.revokeObjectURL(url)
   }
 })
+
 </script>
 
 <template>
@@ -352,7 +405,7 @@ onBeforeUnmount(() => {
               v-else-if="showTranscription"
               class="text-sm text-slate-500"
           >
-            Trascrizione vuota o non disponibile.
+            Trascrizione non ancora disponibile.
           </p>
         </div>
       </div>

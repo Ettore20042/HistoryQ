@@ -3,6 +3,9 @@
 
 import { uploadDocument, getDocumentStatus } from '../services/api'
 import { ref } from 'vue'
+const emit = defineEmits<{
+  uploaded: []
+}>()
 
 const selectedFiles = ref<File[]>([])
 const uploadProgress = ref<number>(0)
@@ -21,48 +24,78 @@ function onFileSelected(event: Event) {
   }
 }
 
-async function handleUpload() {
-  if (selectedFiles.value.length > 0) {
-    if (!displayName.value || !description.value || !historicalDate.value || !author.value || !archiveSource.value) {
-      console.error('All fields are required.')
-      return
-    }
-    const document = await uploadDocument(selectedFiles.value, displayName.value, description.value,historicalDate.value,author.value,archiveSource.value)
-    const id = document.id
 
-    await pollDocumentStatus(id)
+async function handleUpload() {
+  if (selectedFiles.value.length === 0) {
+    console.log('No file selected for upload.')
+    return
+  }
+
+  if (
+      !displayName.value ||
+      !description.value ||
+      !historicalDate.value ||
+      !author.value ||
+      !archiveSource.value
+  ) {
+    console.error('All fields are required.')
+    return
+  }
+
+  try {
+    uploadStatus.value = 'UPLOADING'
+    uploadProgress.value = 0
+
+    const document = await uploadDocument(
+        selectedFiles.value,
+        displayName.value,
+        description.value,
+        historicalDate.value,
+        author.value,
+        archiveSource.value
+    )
+    emit('uploaded')
+
+    // L'upload HTTP è terminato: le immagini sono state inviate.
+    // La pipeline continua in background.
+    uploadStatus.value = document.status || 'PROCESSING'
+    uploadProgress.value = document.progress ?? 10
 
     selectedFiles.value = []
-    uploadStatus.value = ''
-    uploadProgress.value = 0
-  } else {
-    console.log('No file selected for upload.')
+
+    // Avvia il monitoraggio senza aspettarne il completamento.
+    void pollDocumentStatus(document.id).catch((error) => {
+      console.error('Errore nel monitoraggio del documento:', error)
+    })
+  } catch (error) {
+    uploadStatus.value = 'ERROR'
+    console.error('Errore durante il caricamento:', error)
   }
 }
 
-function pollDocumentStatus(id: string) {
-  return new Promise<void>((resolve, reject) => {
-    const interval = setInterval(async () => {
-      try {
-        const statusResponse = await getDocumentStatus(id)
+async function pollDocumentStatus(id: string): Promise<void> {
+  while (true) {
+    try {
+      const statusResponse = await getDocumentStatus(id)
 
-        uploadStatus.value = statusResponse.status
-        uploadProgress.value = statusResponse.progress
+      uploadStatus.value = statusResponse.status
+      uploadProgress.value = statusResponse.progress
 
-        if (statusResponse.status === 'READY') {
-          clearInterval(interval)
-          resolve()
-        } else if (statusResponse.status === 'ERROR') {
-          clearInterval(interval)
-          reject(new Error('Document processing failed.'))
-        }
-      } catch (error) {
-        clearInterval(interval)
-        reject(error)
+      if (
+          statusResponse.status === 'READY' ||
+          statusResponse.status === 'ERROR'
+      ) {
+        return
       }
-    }, 1000)
-  })
+    } catch (error) {
+      console.error('Errore nel recupero dello stato:', error)
+      return
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
 }
+
 
 </script>
 

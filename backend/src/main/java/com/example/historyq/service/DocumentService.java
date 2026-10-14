@@ -125,13 +125,11 @@ public class DocumentService {
         document.setAuthor(author);
         document.setArchiveSource(archive_source);
 
+
         try {
-
-            // 4. Upload di tutte le pagine su Silo
+            // 1. Upload di tutte le pagine su Silo
             for (int i = 0; i < files.length; i++) {
-
                 MultipartFile file = files[i];
-
                 String filename = file.getOriginalFilename();
 
                 if (filename == null || !filename.contains(".")) {
@@ -152,7 +150,7 @@ public class DocumentService {
                 }
 
                 String storedFilename = String.format(
-                        "%04d%s", // Formattiamo il numero della pagina con 4 cifre, es. "0001", "0002", ecc.
+                        "%04d%s",
                         i + 1,
                         fileExtension
                 );
@@ -163,21 +161,8 @@ public class DocumentService {
                 );
             }
 
-            // Upload completato
-            document.setProgress(10);
-
-            // 5. Avvio elaborazione asincrona
-            documentRepository.save(document);
-
-            documentProcessingService.processDocument(documentId);
-
-            return document;
         } catch (Exception e) {
-            document.setProgress(0);
-            document.setStatus("ERROR");
-            documentRepository.save(document);
-
-            // Rimuoviamo i file già caricati su Silo
+            // Pulizia solo se fallisce il caricamento delle immagini.
             try {
                 storageService.delete(storagePath);
             } catch (Exception cleanupException) {
@@ -186,6 +171,18 @@ public class DocumentService {
 
             throw e;
         }
+
+// 2. Upload completato: registriamo il documento.
+        document.setProgress(10);
+        document.setStatus("PROCESSING");
+        documentRepository.save(document);
+
+// 3. Avvio dell'elaborazione asincrona fuori dal try/catch
+// che gestisce la pulizia delle immagini.
+        documentProcessingService.processDocument(documentId);
+
+        return document;
+
     }
         /**
          * Recupera i documenti caricati dall'utente corrente.

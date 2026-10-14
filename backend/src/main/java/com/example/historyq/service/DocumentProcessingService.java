@@ -77,18 +77,7 @@ public class DocumentProcessingService {
                     filenames.add(filename);
                 }
 
-                // Avvio OCR
-                document.setStatus("OCR_PROCESSING");
-                document.setProgress(20);
-                documentRepository.save(document);// Aggiorna lo stato del documento a "OCR_PROCESSING" e salva il progresso al 20% nel database.
 
-                var ocrJob =
-                        ocrService.submitJobFromStorageBytes(
-                                contents,
-                                filenames
-                        );
-
-                // Il resto dell'elaborazione continua qui...
 
             } catch (Exception e) {
                 throw new RuntimeException(

@@ -53,6 +53,10 @@ async function loadDocuments() {
   }
   // Dopo la lista: le anteprime non bloccano la visualizzazione
   loadPreviews()
+
+}
+async function refreshDocuments() {
+  await loadDocuments()
 }
 
 onMounted(loadDocuments)
@@ -88,7 +92,7 @@ onBeforeUnmount(() => {
       </span>
     </section>
 
-    <DocumentUpload />
+    <DocumentUpload @uploaded="refreshDocuments" />
 
     <!-- Caricamento -->
     <section
