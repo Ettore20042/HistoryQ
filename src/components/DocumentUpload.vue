@@ -264,7 +264,7 @@ async function pollDocumentStatus(id: string): Promise<void> {
           </li>
 
 
-prova
+
         </ul>
       </div>
 
