@@ -22,6 +22,7 @@ const router = createRouter({
         { path: '/login', component: LoginView, meta: { guestOnly: true } },
         { path: '/register', component: RegisterView, meta: { guestOnly: true } },
         { path: '/documents/:id', component: DocumentView, meta: { requiresAuth: true } },
+     /*   { path: '/notifications', component: NotificationsView, meta: { requiresAuth: true } },*/
     ],
 })
 

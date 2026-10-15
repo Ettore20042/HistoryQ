@@ -24,6 +24,30 @@ function onFileSelected(event: Event) {
   }
 }
 
+function moveFile(index: number, direction: -1 | 1): void {
+  const newIndex = index + direction
+
+  if (
+      index < 0 ||
+      index >= selectedFiles.value.length ||
+      newIndex < 0 ||
+      newIndex >= selectedFiles.value.length
+  ) {
+    return
+  }
+
+  const files = [...selectedFiles.value]
+  const file = files[index]
+
+  if (!file) return
+
+  files.splice(index, 1)
+  files.splice(newIndex, 0, file)
+
+  selectedFiles.value = files
+}
+
+
 
 async function handleUpload() {
   if (selectedFiles.value.length === 0) {
@@ -201,17 +225,46 @@ async function pollDocumentStatus(id: string): Promise<void> {
           </span>
         </div>
         <ul class="divide-y divide-slate-100">
+
+
           <li
-              v-for="file in selectedFiles"
-              :key="file.name"
+              v-for="(file, index) in selectedFiles"
+              :key="`${file.name}-${file.lastModified}-${index}`"
               class="flex items-center gap-3 border-white/70 px-4 py-3"
           >
-            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold uppercase text-green-700 shadow-sm ring-1 ring-green-100">
-              {{ file.name.split('.').pop() }}
-            </span>
-            <span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{{ file.name }}</span>
-            <span class="text-xs text-slate-400">Immagine</span>
+  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[10px] font-bold uppercase text-green-700 shadow-sm ring-1 ring-green-100">
+    {{ file.name.split('.').pop() }}
+  </span>
+
+            <span class="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">
+    {{ file.name }}
+  </span>
+
+            <div class="flex shrink-0 items-center gap-1">
+              <button
+                  type="button"
+                  :disabled="index === 0"
+                  @click="moveFile(index, -1)"
+                  aria-label="Sposta file verso l'alto"
+                  class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm disabled:opacity-30"
+              >
+                ↑
+              </button>
+
+              <button
+                  type="button"
+                  :disabled="index === selectedFiles.length - 1"
+                  @click="moveFile(index, 1)"
+                  aria-label="Sposta file verso il basso"
+                  class="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm disabled:opacity-30"
+              >
+                ↓
+              </button>
+            </div>
           </li>
+
+
+
         </ul>
       </div>
 
@@ -256,7 +309,7 @@ async function pollDocumentStatus(id: string): Promise<void> {
         <p class="mt-2 text-xs text-slate-500">
           <span v-if="uploadStatus === 'ERROR'">Controlla il documento e riprova.</span>
           <span v-else-if="uploadProgress === 100">Caricamento completato</span>
-          <span v-else>Il documento è in elaborazione, non chiudere questa pagina.</span>
+          <span v-else>Il documento è in elaborazione.</span>
         </p>
       </div>
     </div>

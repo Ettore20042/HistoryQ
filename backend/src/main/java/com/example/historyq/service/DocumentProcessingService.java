@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import com.example.historyq.dto.OcrJobResultResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 // Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
 @Service
 public class DocumentProcessingService {
@@ -19,17 +21,21 @@ public class DocumentProcessingService {
     private final DocumentStorageService storageService;
     private final OcrService ocrService;
     private final RagFlowService ragFlowService;
+    private final NotificationService notificationService;
+    private static final Logger logger = LoggerFactory.getLogger(DocumentProcessingService.class);
 
     public DocumentProcessingService(
             DocumentRepository documentRepository,
             DocumentStorageService storageService,
             OcrService ocrService,
-            RagFlowService ragFlowService
+            RagFlowService ragFlowService,
+            NotificationService notificationService
     ) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.ocrService = ocrService;
         this.ragFlowService = ragFlowService;
+        this.notificationService = notificationService;
     }
 
     @Async
@@ -241,12 +247,31 @@ public class DocumentProcessingService {
 
             documentRepository.save(document);
 
+            try {
+                notificationService.notifyDocumentReady(document);
+            } catch (Exception e) {
+                logger.error(
+                        "Impossibile creare la notifica per il documento {}",
+                        document.getId(),
+                        e
+                );
+            }
+
         } catch (Exception e) {
 
             document.setStatus("ERROR");
             document.setProgress(0);
 
             documentRepository.save(document);
+            try {
+                notificationService.notifyDocumentError(document);
+            } catch (Exception e2) {
+                logger.error(
+                        "Impossibile creare la notifica di errore per il documento {}",
+                        document.getId(),
+                        e2
+                );
+            }
 
             throw new RuntimeException(
                     "Errore durante l'elaborazione del documento",

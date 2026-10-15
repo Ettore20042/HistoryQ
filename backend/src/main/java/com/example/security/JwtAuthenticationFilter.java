@@ -55,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (RuntimeException ignored) {
-            // Invalid tokens remain unauthenticated and are handled by Spring Security.
+            System.out.println("Token JWT non valido: " + ignored.getMessage());
         }
 
         filterChain.doFilter(request, response);

@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { authState, logout } from './services/auth'
 import router from './router'
+import {useNotifications} from "@/services/useNotifications.ts";
+import NotificationPanel from "@/views/panels/NotificationsPanels.vue";
+import {ref} from "vue";
+
+
+const panelOpen = ref(false)
+const { unreadCount } = useNotifications()
 
 function handleLogout() {
+  panelOpen.value = false
   logout()
   router.push('/')
 }
@@ -33,6 +41,44 @@ function handleLogout() {
             Home
           </RouterLink>
           <template v-if="authState.token">
+
+
+
+            <button
+                type="button"
+                class="relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#102a43]"
+                :class="{ 'bg-slate-100 text-[#102a43]': panelOpen }"
+                aria-label="Apri notifiche"
+                :aria-expanded="panelOpen"
+                @click="panelOpen = !panelOpen"
+            >
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+              >
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M10 21h4" />
+              </svg>
+
+              <span>Notifiche</span>
+
+              <span
+                  v-if="unreadCount > 0"
+                  class="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold text-white"
+              >
+        {{ unreadCount > 99 ? '99+' : unreadCount }}
+    </span>
+            </button>
+
+
             <RouterLink
                 to="/documents"
                 class="rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#102a43]"
@@ -49,7 +95,10 @@ function handleLogout() {
       </div>
     </header>
 
-
+    <NotificationPanel
+        :open="panelOpen"
+        @close="panelOpen = false"
+    />
 
 
     <main class="mx-auto w-full max-w-[1350px] flex-1 px-3 py-6 sm:px-4 sm:py-8 lg:px-5">
