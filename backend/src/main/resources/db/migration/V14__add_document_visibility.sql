@@ -1,0 +1,2 @@
+ALTER TABLE documents
+    ADD COLUMN visibility VARCHAR(16) NOT NULL DEFAULT 'PUBLIC';

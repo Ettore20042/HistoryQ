@@ -109,6 +109,16 @@ public class Document {
     @Column(name = "progress", nullable = false)
     private int progress;
 
+    @Column(name = "visibility", nullable = false, length = 16)
+    private String visibility = "PRIVATE";
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
+    }
     public String getStoragePath() {
         return storagePath;
     }

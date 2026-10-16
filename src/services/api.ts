@@ -16,7 +16,9 @@ interface DocumentResponse{
     historicalDate: string
     author: string
     archiveSource: string
+    visibility: 'PUBLIC' | 'PRIVATE';
 }
+
 export async function uploadDocument(files:File[], displayName: string,description:string,historicalDate:string,author:string,archive_source:string):Promise<DocumentResponse> {
   const formData = new FormData();
     for (const file of files) {
@@ -190,4 +192,30 @@ export async function updatePageTranscription(
     }
 
     return await response.json() as PageTranscriptionResponse
+}
+export async function toggleVisibility(
+    document: DocumentResponse
+): Promise<void> {
+    const newVisibility =
+        document.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+
+    const response = await authenticatedFetch(
+        `/api/documents/${document.id}/visibility`,
+        {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ visibility: newVisibility }),
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Errore HTTP ${response.status}`);
+    }
+
+    const updatedDocument: Pick<DocumentResponse, 'visibility'> =
+        await response.json();
+
+    document.visibility = updatedDocument.visibility;
 }

@@ -316,7 +316,29 @@
                     return ResponseEntity.internalServerError().build();
                 }
             }
+            @PatchMapping("/{documentId}/visibility")
+            public ResponseEntity<?> updateVisibility(
+                    @PathVariable UUID documentId,
+                    @RequestBody Map<String, String> request) {
 
+                try {
+                    Document document = documentService.updateVisibility(
+                            documentId,
+                            request.get("visibility")
+                    );
+
+                    return ResponseEntity.ok(
+                            Map.of(
+                                    "id", document.getId(),
+                                    "visibility", document.getVisibility()
+                            )
+                    );
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", e.getMessage()));
+                }
+            }
 
 
 

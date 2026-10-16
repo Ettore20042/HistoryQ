@@ -202,4 +202,31 @@ public class DocumentService {
 
             return documentRepository.findByUploadedBy(user);
         }
+
+    public Document updateVisibility(UUID documentId, String visibility) {
+
+        if (!"PUBLIC".equals(visibility) && !"PRIVATE".equals(visibility)) {
+            throw new IllegalArgumentException(
+                    "La visibilità deve essere PUBLIC oppure PRIVATE"
+            );
+        }
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String username = authentication.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new IllegalStateException("Utente autenticato non trovato"));
+
+        Document document = documentRepository
+                .findByIdAndUploadedBy(documentId, user)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Documento non trovato"));
+
+        document.setVisibility(visibility);
+
+        return documentRepository.save(document);
+    }
     }
