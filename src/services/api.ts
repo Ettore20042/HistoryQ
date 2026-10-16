@@ -17,16 +17,6 @@ interface DocumentResponse{
     author: string
     archiveSource: string
 }
-interface DocumentTranscriptionResponse{
-    transcription: string
-}
-export interface ChatResponse{
-    status:string
-    answer:string
-    citations: Array<string | Record<string, unknown>>
-
-}
-
 export async function uploadDocument(files:File[], displayName: string,description:string,historicalDate:string,author:string,archive_source:string):Promise<DocumentResponse> {
   const formData = new FormData();
     for (const file of files) {
@@ -97,17 +87,6 @@ export async function getDocumentPreview(
 
     return URL.createObjectURL(blob)
 }
-export async function getDocumentTranscription(documentId:string): Promise<string> {
-    const response = await authenticatedFetch(`/api/documents/${documentId}/transcription`)
-
-            if (!response.ok) {
-                throw new Error('Failed to get document transcription')
-            }
-            const data: DocumentTranscriptionResponse = await response.json()
-            return data.transcription
-
-}
-
 export interface ChatResponse {
     status: string
     answer: string
@@ -166,4 +145,49 @@ export async function getDocumentPage(
     const blob = await response.blob()
 
     return URL.createObjectURL(blob)
+}
+
+export interface PageTranscriptionResponse {
+    id: string
+    documentId: string
+    filename: string
+    ocrText: string | null
+}
+
+export async function getPageTranscription(
+    documentId: string,
+    filename: string
+): Promise<PageTranscriptionResponse> {
+    const response = await authenticatedFetch(
+        `/api/documents/${documentId}/page-transcriptions/${encodeURIComponent(filename)}`
+    )
+
+    if (!response.ok) {
+        throw new Error('Impossibile recuperare la trascrizione della pagina.')
+    }
+
+    return await response.json() as PageTranscriptionResponse
+}
+
+export async function updatePageTranscription(
+    documentId: string,
+    filename: string,
+    ocrText: string
+): Promise<PageTranscriptionResponse> {
+    const response = await authenticatedFetch(
+        `/api/documents/${documentId}/page-transcriptions/${encodeURIComponent(filename)}`,
+        {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ocrText }),
+        }
+    )
+
+    if (!response.ok) {
+        throw new Error('Impossibile salvare la trascrizione della pagina.')
+    }
+
+    return await response.json() as PageTranscriptionResponse
 }

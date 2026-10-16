@@ -4,9 +4,8 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getDocuments,
-  getDocumentTranscription,
   getDocumentPages,
-  getDocumentPage, getDocumentStatus,
+  getDocumentPage, getDocumentStatus,getPageTranscription,updatePageTranscription,
 } from '@/services/api'
 import RagChat from '@/components/RagChat.vue'
 
@@ -36,13 +35,9 @@ const document = ref<DocumentItem | null>(null)
 const statusTimer=ref<ReturnType<typeof setTimeout> | null>(null)
 let componentUnmounted = false
 
-const transcription = ref('')
-const showTranscription = ref(false)
-
 const loading = ref(true)
 
 const error = ref('')
-const transcriptionError = ref('')
 
 const pageNames = ref<string[]>([])
 const currentPageIndex = ref(0)
@@ -51,6 +46,12 @@ const pageInput=ref('1')
 const pageUrls=ref<Record<string,string>>({})
 const pageLoading=ref(false)
 const pageError=ref('')
+
+const pageTranscription = ref('')
+const savingPageTranscription = ref(false)
+const pageTranscriptionLoading = ref(false)
+const pageTranscriptionError = ref('')
+const pageTranscriptionMessage = ref('')
 
 
 
@@ -61,7 +62,6 @@ async function loadDocument() {
   loading.value = true
   error.value = ''
   pageError.value = ''
-  transcriptionError.value = ''
 
   try {
     const documents = await getDocuments()
@@ -90,11 +90,6 @@ async function loadDocument() {
       console.error(err)
     }
 
-    // La trascrizione viene caricata solo quando il documento è READY.
-    if (document.value.status === 'READY') {
-      await loadTranscription()
-    }
-
     // Aggiorna lo stato anche se il documento è già READY o ERROR.
     void pollDocumentStatus()
   } catch (err) {
@@ -104,17 +99,6 @@ async function loadDocument() {
         : 'Impossibile caricare il documento.'
   } finally {
     loading.value = false
-  }
-}
-
-async function loadTranscription() {
-  try {
-    transcription.value = await getDocumentTranscription(documentId.value)
-    transcriptionError.value = ''
-  } catch (err) {
-    transcriptionError.value =
-      'La trascrizione non è disponibile al momento.'
-    console.error(err)
   }
 }
 
@@ -129,13 +113,10 @@ async function pollDocumentStatus(): Promise<void> {
     document.value.progress = result.progress
 
     if (result.status === 'READY') {
-      await loadTranscription()
       return
     }
 
     if (result.status === 'ERROR') {
-      transcriptionError.value =
-        'Elaborazione non riuscita. La trascrizione non è disponibile.'
       return
     }
   } catch (err) {
@@ -151,34 +132,40 @@ async function pollDocumentStatus(): Promise<void> {
 }
 
 
+
 async function loadPage(index: number) {
   if (index < 0 || index >= pageNames.value.length) return
 
   const filename = pageNames.value[index]
-
   if (!filename) return
 
   currentPageIndex.value = index
   pageInput.value = String(index + 1)
   pageError.value = ''
 
-  if (pageUrls.value[filename]) return
+  // Carica la trascrizione della pagina selezionata
+  await loadPageTranscription(filename)
 
-  pageLoading.value = true
+  // Carica l'immagine solo se non è già disponibile
+  if (!pageUrls.value[filename]) {
+    pageLoading.value = true
 
-  try {
-    const url = await getDocumentPage(documentId.value, filename)
-    pageUrls.value[filename] = url
-  } catch (err) {
-    pageError.value =
-        err instanceof Error
-            ? err.message
-            : 'Impossibile caricare la pagina.'
-  } finally {
-    pageLoading.value = false
+    try {
+      const url = await getDocumentPage(documentId.value, filename)
+      pageUrls.value[filename] = url
+    } catch (err) {
+      pageError.value =
+          err instanceof Error
+              ? err.message
+              : 'Impossibile caricare la pagina.'
+    } finally {
+      pageLoading.value = false
+    }
   }
+
   void preloadPage(index + 1)
 }
+
 async function preloadPage(index: number) {
   if (index < 0 || index >= pageNames.value.length) return
 
@@ -220,6 +207,57 @@ function goToPage() {
 
   void loadPage(pageNumber - 1)
 }
+
+async function loadPageTranscription(filename: string) {
+  pageTranscriptionLoading.value = true
+  pageTranscriptionError.value = ''
+  pageTranscriptionMessage.value = ''
+  pageTranscription.value = ''
+
+  try {
+    const response = await getPageTranscription(
+        documentId.value,
+        filename
+    )
+
+    pageTranscription.value = response.ocrText ?? ''
+  } catch (error) {
+    pageTranscriptionError.value =
+        error instanceof Error
+            ? error.message
+            : 'Errore durante il caricamento della trascrizione.'
+  } finally {
+    pageTranscriptionLoading.value = false
+  }
+}
+
+async function savePageTranscription() {
+  const filename = currentPageName.value
+  if (!filename) return
+
+  savingPageTranscription.value = true
+  pageTranscriptionError.value = ''
+  pageTranscriptionMessage.value = ''
+
+  try {
+    const response = await updatePageTranscription(
+        documentId.value,
+        filename,
+        pageTranscription.value
+    )
+
+    pageTranscription.value = response.ocrText ?? ''
+    pageTranscriptionMessage.value = 'Trascrizione salvata correttamente.'
+  } catch (error) {
+    pageTranscriptionError.value =
+        error instanceof Error
+            ? error.message
+            : 'Errore durante il salvataggio della trascrizione.'
+  } finally {
+    savingPageTranscription.value = false
+  }
+}
+
 
 function goToCitationPage(filename: string) {
   const pageIndex = pageNames.value.indexOf(filename)
@@ -378,40 +416,66 @@ onBeforeUnmount(() => {
 
 
         <div class="border-t border-slate-200 px-5 py-4">
-          <h3 class="mb-2 text-sm font-semibold text-slate-800">
-            Trascrizione del documento
-          </h3>
+          <!-- Editor della trascrizione della singola pagina -->
+          <div class="mt-5 border-t border-slate-200 pt-5">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h3 class="text-lg font-semibold text-slate-900">
+                Trascrizione della pagina {{ currentPageIndex + 1 }}
+              </h3>
 
-          <button
-              type="button"
-              class="mb-3 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-              @click="showTranscription = !showTranscription"
-          >
-            {{ showTranscription ? 'Nascondi' : 'Mostra' }} trascrizione
-          </button>
+              <span
+                  v-if="pageTranscriptionLoading"
+                  class="text-sm text-slate-500"
+              >
+      Caricamento...
+    </span>
+            </div>
 
-          <p v-if="transcriptionError" class="text-sm text-red-600">
-            {{ transcriptionError }}
-          </p>
+            <p
+                v-if="pageTranscriptionError"
+                class="mb-3 text-sm text-red-600"
+                role="alert"
+            >
+              {{ pageTranscriptionError }}
+            </p>
 
-          <div
-              v-else-if="showTranscription && transcription"
-              class="max-h-[500px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4"
-          >
-            <pre class="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{{ transcription }}</pre>
+            <template v-else>
+              <textarea
+                  v-model="pageTranscription"
+                  :disabled="pageTranscriptionLoading || savingPageTranscription"
+                  placeholder="La trascrizione OCR della pagina apparirà qui..."
+                  rows="12"
+                  class="w-full resize-y rounded-lg border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60"
+              ></textarea>
+
+              <div class="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                    type="button"
+                    @click="savePageTranscription"
+                    :disabled="pageTranscriptionLoading || savingPageTranscription || !currentPageName"
+                    class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {{ savingPageTranscription ? 'Salvataggio...' : 'Salva trascrizione' }}
+                </button>
+
+                <span
+                    v-if="pageTranscriptionMessage"
+                    class="text-sm text-green-700"
+                    role="status"
+                >
+                  {{ pageTranscriptionMessage }}
+                </span>
+              </div>
+            </template>
           </div>
-
-          <p
-              v-else-if="showTranscription"
-              class="text-sm text-slate-500"
-          >
-            Trascrizione non ancora disponibile.
-          </p>
         </div>
+
+
+
+
       </div>
 
-
-        <!-- Colonna destra: chat AI -->
+      <!-- Colonna destra: chat AI -->
       <div class="min-w-0">
         <RagChat @citation-page="goToCitationPage" />
       </div>

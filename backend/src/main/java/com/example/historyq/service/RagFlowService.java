@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
-
+import org.springframework.http.HttpMethod;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -267,7 +267,7 @@ public class RagFlowService {
             String datasetId,
             String filename,
             String ocrText
-    ) {
+      ) {
         if (filename == null || filename.isBlank()) {
             throw new IllegalArgumentException(
                     "Il nome del file non può essere vuoto."
@@ -350,6 +350,64 @@ public class RagFlowService {
         } catch (Exception e) {
             throw new RuntimeException(
                     "Errore nella risposta di RAGFlow durante l'upload del documento: "
+                            + e.getMessage(),
+                    e
+            );
+        }
+    }
+    public void deleteDocument(String datasetId, String documentId) {
+        if (datasetId == null || datasetId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Il dataset ID non può essere vuoto."
+            );
+        }
+
+        if (documentId == null || documentId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Il document ID non può essere vuoto."
+            );
+        }
+
+        log.info(
+                "Deleting document '{}' from dataset '{}'",
+                documentId,
+                datasetId
+        );
+
+        Map<String, Object> body = Map.of(
+                "ids", List.of(documentId),
+                "delete_all", false
+        );
+
+        String responseBody = restClient.method(HttpMethod.DELETE)
+                .uri(
+                        "/api/v1/datasets/{datasetId}/documents",
+                        datasetId
+                )
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+
+            if (root.path("code").asInt(-1) != 0) {
+                throw new RuntimeException(
+                        "Errore eliminazione documento RAGFlow: "
+                                + root.path("message").asText()
+                );
+            }
+
+            log.info(
+                    "Documento '{}' eliminato dal dataset '{}'",
+                    documentId,
+                    datasetId
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Errore nella risposta di RAGFlow durante l'eliminazione: "
                             + e.getMessage(),
                     e
             );

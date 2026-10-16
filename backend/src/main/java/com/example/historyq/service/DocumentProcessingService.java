@@ -13,6 +13,10 @@ import java.util.UUID;
 import com.example.historyq.dto.OcrJobResultResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.example.historyq.repository.DocumentPageRepository;
+import com.example.historyq.entity.DocumentPage;
+
+
 // Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
 @Service
 public class DocumentProcessingService {
@@ -23,19 +27,22 @@ public class DocumentProcessingService {
     private final RagFlowService ragFlowService;
     private final NotificationService notificationService;
     private static final Logger logger = LoggerFactory.getLogger(DocumentProcessingService.class);
+    private final DocumentPageRepository documentPageRepository;
 
     public DocumentProcessingService(
             DocumentRepository documentRepository,
             DocumentStorageService storageService,
             OcrService ocrService,
             RagFlowService ragFlowService,
-            NotificationService notificationService
+            NotificationService notificationService,
+            DocumentPageRepository documentPageRepository
     ) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.ocrService = ocrService;
         this.ragFlowService = ragFlowService;
         this.notificationService = notificationService;
+        this.documentPageRepository = documentPageRepository;
     }
 
     @Async
@@ -147,12 +154,38 @@ public class DocumentProcessingService {
 
             var ocrResult =
                     ocrService.getJobResult(jobId);
+            List<OcrJobResultResponse.PageResult> pageResults = ocrResult.getPages();
 
             // 3. OCR completato
             document.setStatus("OCR_COMPLETED");
-            document.setOcrText(ocrResult.getResult());
             document.setProgress(50);
             documentRepository.save(document);
+
+
+            //Recupera le pagine restituite dall'OCR e aggiorna il database con il testo OCR per ogni pagina
+
+
+            if (pageResults != null && !pageResults.isEmpty()) {
+                for (OcrJobResultResponse.PageResult pageResult : pageResults) {
+                    if (pageResult.getFilename() == null
+                            || pageResult.getFilename().isBlank()) {
+                        continue;
+                    }
+
+                    DocumentPage page = documentPageRepository
+                            .findByDocument_IdAndFilename(
+                                    documentId,
+                                    pageResult.getFilename()
+                            )
+                            .orElseGet(DocumentPage::new);
+
+                    page.setDocument(document);
+                    page.setFilename(pageResult.getFilename());
+                    page.setOcrText(pageResult.getText());
+
+                    documentPageRepository.save(page);
+                }
+            }
 
             // 4. Elaborazione RAGFlow
             document.setStatus("RAGFLOW_PROCESSING");
@@ -168,7 +201,7 @@ public class DocumentProcessingService {
                     );
 
             List<String> ragflowDocumentIds = new ArrayList<>();
-            List<OcrJobResultResponse.PageResult> pageResults = ocrResult.getPages();
+
 
             if (pageResults != null && !pageResults.isEmpty()) {
                 for (OcrJobResultResponse.PageResult pageResult : pageResults) {
@@ -179,13 +212,25 @@ public class DocumentProcessingService {
                         continue;
                     }
 
-                    ragflowDocumentIds.add(
-                            ragFlowService.uploadOcrText(
-                                    ragflowDatasetId,
-                                    pageResult.getFilename(),
-                                    pageResult.getText()
-                            )
+                    String ragflowDocumentId = ragFlowService.uploadOcrText(
+                            ragflowDatasetId,
+                            pageResult.getFilename(),
+                            pageResult.getText()
                     );
+
+                    ragflowDocumentIds.add(ragflowDocumentId);
+
+                    DocumentPage page = documentPageRepository
+                            .findByDocument_IdAndFilename(
+                                    documentId,
+                                    pageResult.getFilename()
+                            )
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Pagina non trovata: " + pageResult.getFilename()
+                            ));
+
+                    page.setRagflowDocumentId(ragflowDocumentId);
+                    documentPageRepository.save(page);
                 }
             } else {
                 ragflowDocumentIds.add(

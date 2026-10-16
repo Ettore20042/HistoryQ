@@ -48,9 +48,6 @@ public class Document {
     @Column(name = "archive_source", length = 512)
     private String archiveSource;
 
-    @Column(name = "ocr_text", columnDefinition = "TEXT")
-    private String ocrText;
-
     @Column(name = "ragflow_dataset_id", length = 128)
     private String ragflowDatasetId;
 
@@ -111,14 +108,6 @@ public class Document {
 
     @Column(name = "progress", nullable = false)
     private int progress;
-
-    public String getOcrText() {
-        return ocrText;
-    }
-
-    public void setOcrText(String ocrText) {
-        this.ocrText = ocrText;
-    }
 
     public String getStoragePath() {
         return storagePath;

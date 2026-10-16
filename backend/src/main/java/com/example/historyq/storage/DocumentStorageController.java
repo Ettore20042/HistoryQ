@@ -17,8 +17,9 @@
         import org.springframework.http.ResponseEntity;
         import com.example.historyq.storage.DocumentStorageService;
         import java.io.InputStream;
-        import org.springframework.http.HttpStatus;
         import java.util.List;
+        import org.slf4j.Logger;
+        import org.slf4j.LoggerFactory;
 
 
         import java.util.Map;
@@ -32,6 +33,7 @@
             private final DocumentRepository documentRepository;
             private final RagFlowService ragFlowService;
             private final DocumentStorageService documentStorageService;
+            private final Logger logger = LoggerFactory.getLogger(DocumentStorageController.class);
 
             public DocumentStorageController(
                     DocumentService documentService,
@@ -222,32 +224,13 @@
                     return ResponseEntity.notFound().build();
 
                 } catch (Exception e) {
+                    logger.error(
+                            "Errore durante il recupero dell'anteprima del documento {}",
+                            documentId,
+                            e
+                    );
                     return ResponseEntity.internalServerError().build();
                 }
-            }
-
-            @GetMapping("/{documentId}/transcription")
-            public ResponseEntity<?> getTranscription(
-                    @PathVariable UUID documentId
-            ) {
-                var optionalDocument = documentRepository.findById(documentId);
-
-                if (optionalDocument.isEmpty()) {
-                    return ResponseEntity.notFound().build();
-                }
-
-                Document document = optionalDocument.get();
-
-                if (!"READY".equals(document.getStatus())) {
-                    return ResponseEntity.status(HttpStatus.CONFLICT)
-                            .body("La trascrizione non è ancora disponibile. Stato: "
-                                    + document.getStatus());
-                }
-
-                return ResponseEntity.ok(Map.of(
-                        "transcription",
-                        document.getOcrText() == null ? "" : document.getOcrText()
-                ));
             }
 
             @GetMapping("/{documentId}/pages")
@@ -323,8 +306,13 @@
 
                 } catch (IllegalArgumentException e) {
                     return ResponseEntity.notFound().build();
-
                 } catch (Exception e) {
+                    logger.error(
+                            "Errore durante il recupero della pagina {} del documento {}",
+                            filename,
+                            documentId,
+                            e
+                    );
                     return ResponseEntity.internalServerError().build();
                 }
             }
@@ -334,4 +322,3 @@
 
 
         }
-
