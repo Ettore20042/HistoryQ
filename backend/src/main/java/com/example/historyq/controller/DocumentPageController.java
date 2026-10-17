@@ -7,6 +7,12 @@ import com.example.historyq.service.RagFlowService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.historyq.entity.Document;
+import com.example.historyq.repository.DocumentRepository;
+import com.example.historyq.entity.User;
+import com.example.historyq.repository.UserRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
@@ -16,18 +22,32 @@ public class DocumentPageController {
 
     private final DocumentPageRepository documentPageRepository;
     private final RagFlowService ragFlowService;
+    private final DocumentRepository documentRepository;
+    private final UserRepository userRepository;
 
     public DocumentPageController(
             DocumentPageRepository documentPageRepository,
-            RagFlowService ragFlowService) {
+            RagFlowService ragFlowService,
+            DocumentRepository documentRepository,
+            UserRepository userRepository) {
         this.documentPageRepository = documentPageRepository;
         this.ragFlowService = ragFlowService;
+        this.documentRepository = documentRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/{documentId}/page-transcriptions/{filename:.+}")
     public ResponseEntity<PageTranscriptionResponse> getTranscription(
             @PathVariable UUID documentId,
             @PathVariable String filename) {
+
+        if (!filename.matches("[A-Za-z0-9._-]+") || filename.contains("..")) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (!isDocumentOwner(documentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         return documentPageRepository
                 .findByDocument_IdAndFilename(documentId, filename)
@@ -40,6 +60,12 @@ public class DocumentPageController {
             @PathVariable UUID documentId,
             @PathVariable String filename,
             @RequestBody UpdateTranscriptionRequest request) {
+        if (!filename.matches("[A-Za-z0-9._-]+") || filename.contains("..")) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!isDocumentOwner(documentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         if (request == null || request.ocrText() == null) {
             return ResponseEntity.badRequest().build();
@@ -148,4 +174,28 @@ public class DocumentPageController {
             String filename,
             String ocrText
     ) {}
+
+    private boolean isDocumentOwner(UUID documentId) {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getPrincipal())) {
+            return false;
+        }
+
+        String username = authentication.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElse(null);
+
+        if (user == null) {
+            return false;
+        }
+
+        return documentRepository
+                .findByIdAndUploadedBy(documentId, user)
+                .isPresent();
+    }
 }

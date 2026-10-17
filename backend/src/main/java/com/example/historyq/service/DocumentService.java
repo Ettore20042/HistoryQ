@@ -229,4 +229,30 @@ public class DocumentService {
 
         return documentRepository.save(document);
     }
+    public Document getOwnedDocument(UUID documentId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalArgumentException("Documento non trovato");
+        }
+        User user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new IllegalArgumentException("Documento non trovato"));
+        return documentRepository.findByIdAndUploadedBy(documentId, user)
+                .orElseThrow(() -> new IllegalArgumentException("Documento non trovato"));
+    }
+
+    public List<Document> getPublicDocuments() {
+        return documentRepository.findByVisibilityOrderByDisplayNameAsc("PUBLIC");
+    }
+
+    public List<Document> searchPublicDocuments(String name) {
+        if (name == null || name.isBlank()) {
+            return getPublicDocuments();
+        }
+
+        return documentRepository
+                .findByVisibilityAndDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(
+                        "PUBLIC",
+                        name.trim()
+                );
+    }
     }

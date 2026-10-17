@@ -1,3 +1,48 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import {getPublicDocumentPreview} from '../services/api'
+
+interface PublicDocument {
+  id: string
+  displayName: string
+  description?: string
+  pageCount?: number
+  historicalDate?: string
+}
+const previewUrls = ref<Record<string, string>>({})
+const publicDocuments = ref<PublicDocument[]>([])
+const loadingPublicDocuments = ref(true)
+
+onMounted(async () => {
+  try {
+    const response = await fetch('/api/public/documents')
+
+    if (!response.ok) {
+      throw new Error(`Errore HTTP ${response.status}`)
+    }
+
+    const documents = await response.json() as PublicDocument[]
+    publicDocuments.value = documents.slice(0, 3)
+    await Promise.all(
+        publicDocuments.value.map(async (doc) => {
+          try {
+            previewUrls.value[doc.id] =
+                await getPublicDocumentPreview(doc.id)
+          } catch (error) {
+            console.error(`Anteprima non disponibile per ${doc.id}`, error)
+          }
+        })
+    )
+  } catch (error) {
+    console.error('Errore caricamento documenti pubblici:', error)
+  } finally {
+    loadingPublicDocuments.value = false
+  }
+})
+</script>
+
+
+
 <template>
   <div class="space-y-16 sm:space-y-20">
     <section class="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
@@ -51,6 +96,74 @@
           </div>
           <div class="border-t border-slate-100 pt-4 text-xs text-slate-400">OCR e indicizzazione semantica attivi</div>
         </div>
+      </div>
+    </section>
+    <section class="border-y border-slate-200 py-10 sm:py-12">
+      <div class="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+            Archivio condiviso
+          </p>
+          <h2 class="mt-2 text-2xl font-semibold text-[#102a43]">
+            Documenti pubblici
+          </h2>
+        </div>
+
+        <RouterLink
+            to="/public/documents"
+            class="text-sm font-semibold text-blue-700 hover:underline"
+        >
+          Esplora tutti →
+        </RouterLink>
+      </div>
+
+      <p v-if="loadingPublicDocuments" class="text-sm text-slate-500">
+        Caricamento documenti...
+      </p>
+
+      <p
+          v-else-if="publicDocuments.length === 0"
+          class="text-sm text-slate-500"
+      >
+        Nessun documento pubblico disponibile.
+      </p>
+
+      <div v-else class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <article
+            v-for="doc in publicDocuments"
+            :key="doc.id"
+            class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <img
+              v-if="previewUrls[doc.id]"
+              :src="previewUrls[doc.id]"
+              :alt="`Anteprima di ${doc.displayName}`"
+              class="mb-4 h-40 w-full rounded-lg object-cover"
+          />
+          <h3 class="font-semibold text-[#102a43]">
+            {{ doc.displayName }}
+          </h3>
+
+          <p class="mt-2 line-clamp-3 text-sm text-slate-500">
+            {{ doc.description || 'Documento storico condiviso.' }}
+          </p>
+
+          <p class="mt-3 text-xs text-slate-400">
+        <span v-if="doc.pageCount != null">
+          {{ doc.pageCount }} pagine
+        </span>
+            <span v-if="doc.historicalDate">
+          · {{ doc.historicalDate }}
+        </span>
+          </p>
+
+          <RouterLink
+              :to="`/documents/${doc.id}`"
+              class="mt-4 inline-block text-sm font-semibold text-blue-700 hover:underline"
+          >
+            Consulta documento →
+          </RouterLink>
+        </article>
       </div>
     </section>
 

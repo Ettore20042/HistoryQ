@@ -1,1 +1,101 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+:root {
+  color: #342d27;
+  background: #f4f0e8;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(174, 137, 93, 0.1), transparent 32rem),
+    #f4f0e8;
+}
+
+h1, h2, h3 {
+  font-family: "Fraunces", Georgia, serif;
+  letter-spacing: -0.025em;
+}
+
+button, a, input, textarea {
+  transition-duration: 180ms;
+}
+
+/* Brand palette: terracotta, olive and warm paper instead of cold UI blues. */
+.text-blue-700, .text-blue-800, .text-indigo-700, .text-indigo-600 {
+  color: #8b4935 !important;
+}
+
+.bg-blue-700, .bg-indigo-600 {
+  background-color: #8b4935 !important;
+}
+
+.hover\:bg-blue-800:hover, .hover\:bg-indigo-700:hover,
+.hover\:bg-indigo-800:hover {
+  background-color: #6f3829 !important;
+}
+
+.bg-blue-50, .bg-indigo-50, .bg-indigo-100 {
+  background-color: #f2e5d8 !important;
+}
+
+.border-blue-300, .border-indigo-200, .focus\:border-blue-600:focus,
+.focus\:border-indigo-500:focus {
+  border-color: #c38d70 !important;
+}
+
+.focus\:ring-blue-100:focus, .focus\:ring-indigo-200:focus,
+.focus\:ring-indigo-500:focus {
+  --tw-ring-color: rgba(139, 73, 53, 0.2) !important;
+}
+
+.text-emerald-600, .text-emerald-700, .text-green-700,
+.text-green-600 {
+  color: #68714a !important;
+}
+
+.bg-emerald-50, .bg-green-50, .bg-green-50\/40,
+.bg-green-50\/80, .bg-emerald-100 {
+  background-color: #e8eadb !important;
+}
+
+.bg-emerald-500, .bg-green-600, .bg-green-700 {
+  background-color: #68714a !important;
+}
+
+.hover\:bg-green-800:hover {
+  background-color: #4f5838 !important;
+}
+
+.border-green-100, .border-emerald-200 {
+  border-color: #cbd1b5 !important;
+}
+
+.focus\:border-green-500:focus {
+  border-color: #8d9568 !important;
+}
+
+.focus\:ring-green-500:focus {
+  --tw-ring-color: rgba(104, 113, 74, 0.2) !important;
+}
+
+.text-\[\#102a43\] {
+  color: #3f352b !important;
+}
+
+.bg-\[\#102a43\] {
+  background-color: #3f352b !important;
+}
+
+.hover\:bg-\[\#173f61\]:hover {
+  background-color: #6f3829 !important;
+}

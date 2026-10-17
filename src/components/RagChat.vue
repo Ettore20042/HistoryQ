@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { askDocumentQuestion } from '../services/api'
+import { askDocumentQuestion, askPublicDocumentQuestion } from '../services/api'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const documentId = route.params.id as string
+
+const props = defineProps<{
+  publicDocument?: boolean
+}>()
 
 interface Message {
   id: string
@@ -97,7 +101,9 @@ async function handleSendMessage() {
   await scrollToBottom()
 
   try {
-    const response = await askDocumentQuestion(documentId, query)
+    const response = props.publicDocument
+      ? await askPublicDocumentQuestion(documentId, query)
+      : await askDocumentQuestion(documentId, query)
     const assistantMessage: Message = {
       id: 'res-' + Date.now(),
       role: 'assistant',

@@ -98,12 +98,7 @@
                                 .body("La domanda non può essere vuota.");
                     }
 
-                    Document document = documentRepository.findById(documentId)
-                            .orElseThrow(() ->
-                                    new IllegalArgumentException(
-                                            "Documento non trovato: " + documentId
-                                    )
-                            );
+                    Document document = documentService.getOwnedDocument(documentId);
 
                     String chatId = document.getRagflowChatId();
 
@@ -126,8 +121,7 @@
                     return ResponseEntity.ok(result);
 
                 } catch (IllegalArgumentException e) {
-                    return ResponseEntity.badRequest()
-                            .body("Richiesta non valida: " + e.getMessage());
+                    return ResponseEntity.notFound().build();
 
                 } catch (Exception e) {
                     return ResponseEntity.internalServerError()
@@ -142,12 +136,7 @@
                     @PathVariable UUID documentId
             ) {
                 try {
-                    Document document = documentRepository.findById(documentId)
-                            .orElseThrow(() ->
-                                    new IllegalArgumentException(
-                                            "Documento non trovato: " + documentId
-                                    )
-                            );
+                    Document document = documentService.getOwnedDocument(documentId);
 
                     return ResponseEntity.ok(Map.of(
                             "status", document.getStatus(),
@@ -155,8 +144,7 @@
                     ));
 
                 } catch (IllegalArgumentException e) {
-                    return ResponseEntity.badRequest()
-                            .body("Richiesta non valida: " + e.getMessage());
+                    return ResponseEntity.notFound().build();
 
                 } catch (Exception e) {
                     return ResponseEntity.internalServerError()
@@ -187,12 +175,7 @@
                     @PathVariable UUID documentId
             ) {
                 try {
-                    Document document = documentRepository.findById(documentId)
-                            .orElseThrow(() ->
-                                    new IllegalArgumentException(
-                                            "Documento non trovato: " + documentId
-                                    )
-                            );
+                    Document document = documentService.getOwnedDocument(documentId);
 
                     String prefix = "documents/" + documentId + "/pages/";
 
@@ -238,12 +221,7 @@
                     @PathVariable UUID documentId
             ) {
                 try {
-                    documentRepository.findById(documentId)
-                            .orElseThrow(() ->
-                                    new IllegalArgumentException(
-                                            "Documento non trovato: " + documentId
-                                    )
-                            );
+                    documentService.getOwnedDocument(documentId);
 
                     String prefix = "documents/" + documentId + "/pages/";
 
@@ -269,12 +247,7 @@
                     @PathVariable String filename
             ) {
                 try {
-                    documentRepository.findById(documentId)
-                            .orElseThrow(() ->
-                                    new IllegalArgumentException(
-                                            "Documento non trovato: " + documentId
-                                    )
-                            );
+                    documentService.getOwnedDocument(documentId);
 
                     // Accettiamo soltanto nomi di file semplici e immagini supportate.
                     if (!filename.matches("[A-Za-z0-9._-]+")
@@ -339,6 +312,7 @@
                             .body(Map.of("error", e.getMessage()));
                 }
             }
+
 
 
 

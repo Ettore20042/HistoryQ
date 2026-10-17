@@ -30,8 +30,7 @@ function readStoredToken(): string | null {
 
   const { exp } = decodePayload(token)
   if (exp && exp * 1000 <= Date.now()) {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USERNAME_KEY)
+    logout()
     return null
   }
 
@@ -92,8 +91,12 @@ export function authenticatedFetch(
     authState.token = null
   }
 
-  return fetch(input, { ...init, headers })
+  return fetch(input, { ...init, headers }).then(response => {
+    if (response.status === 401) logout()
+    return response
+  })
 }
+
 function setSession(data: AuthResponse): void {
   localStorage.setItem(TOKEN_KEY, data.token)
   localStorage.setItem(USERNAME_KEY, data.username)

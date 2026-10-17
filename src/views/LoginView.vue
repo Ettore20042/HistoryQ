@@ -25,8 +25,8 @@ async function submit() {
 <template>
   <div class="mx-auto max-w-md">
     <div class="mb-8 text-center">
-      <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[#102a43] font-bold text-white">H</div>
-      <h1 class="mt-5 text-2xl font-semibold tracking-tight text-[#102a43]">Accedi a HistoryQ</h1>
+      <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-[#3f352b] font-bold text-white">HQ</div>
+      <h1 class="mt-5 text-2xl font-semibold tracking-tight text-[#3f352b]">Accedi a HistoryQ</h1>
       <p class="mt-2 text-sm text-slate-500">Entra nel tuo spazio di lavoro documentale.</p>
     </div>
     <form class="border border-slate-200 bg-white p-6 shadow-sm sm:p-8" @submit.prevent="submit">

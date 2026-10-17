@@ -13,6 +13,11 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
 
     List<Document> findByUploadedBy(User user);
     Optional<Document> findByIdAndUploadedBy(UUID id, User user);
+    List<Document> findByVisibilityOrderByDisplayNameAsc(String visibility);
+    List<Document> findByVisibilityAndDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(
+            String visibility,
+            String displayName
+    );
 
 
 
