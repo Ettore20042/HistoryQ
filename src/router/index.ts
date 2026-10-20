@@ -7,6 +7,8 @@ import RegisterView from '@/views/RegisterView.vue'
 import { isAuthenticated } from '@/services/auth'
 import DocumentView from '@/views/DocumentView.vue'
 import PublicDocumentsView from '@/views/PublicDocumentsView.vue'
+import CollectionsView from '@/views/CollectionsView.vue'
+import CollectionDetailView from '@/views/CollectionDetailView.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -24,6 +26,8 @@ const router = createRouter({
         { path: '/register', component: RegisterView, meta: { guestOnly: true } },
         { path: '/documents/:id', component: DocumentView },
         { path: '/public/documents', component: PublicDocumentsView  },
+        { path: '/collections', component: CollectionsView,meta: { requiresAuth: true } },
+        {path: '/collections/:id', component: CollectionDetailView, meta: { requiresAuth: true } },
     ],
 })
 

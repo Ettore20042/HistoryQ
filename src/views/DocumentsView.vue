@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DocumentUpload from '../components/DocumentUpload.vue'
 import { getDocuments, getDocumentPreview,toggleVisibility as updateVisibilityApi } from '../services/api'
+import AddToCollectionButton from '@/components/AddToCollectionButton.vue'
 
 
 interface DocumentItem {
@@ -240,6 +241,10 @@ onBeforeUnmount(() => {
                   <span v-if="document.author"> · {{ document.author }}</span>
                 </p>
               </div>
+              <AddToCollectionButton
+                  :document-id="document.id"
+                  :document-name="document.displayName"
+              />
               <span
                   class="shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                   :class="visibilityClasses(document)"

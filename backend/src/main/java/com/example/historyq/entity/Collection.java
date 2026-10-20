@@ -31,6 +31,10 @@ public class Collection {
 
     @Column(name = "ragflow_dataset_id", length = 255, unique = true)
     private String ragflowDatasetId;
+    @Column(name = "ragflow_chat_id", length = 255)
+    private String ragflowChatId;
+
+
 
     @ManyToOne
     @JoinColumn(name = "owner_id", nullable = false)
@@ -93,5 +97,12 @@ public class Collection {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+    public String getRagflowChatId() {
+        return ragflowChatId;
+    }
+
+    public void setRagflowChatId(String ragflowChatId) {
+        this.ragflowChatId = ragflowChatId;
     }
 }

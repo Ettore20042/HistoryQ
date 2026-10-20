@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { askDocumentQuestion, askPublicDocumentQuestion } from '../services/api'
+import {
+  askCollectionQuestion,
+  askDocumentQuestion,
+  askPublicDocumentQuestion,
+} from '@/services/api'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -8,6 +12,7 @@ const documentId = route.params.id as string
 
 const props = defineProps<{
   publicDocument?: boolean
+  collectionId?: string
 }>()
 
 interface Message {
@@ -20,7 +25,9 @@ interface Message {
 
 type Citation = string | Record<string, unknown>
 
-const chatStorageKey = `historyq_chat_${documentId}`
+const chatStorageKey = props.collectionId
+    ? `historyq_chat_collection_${props.collectionId}`
+    : `historyq_chat_${documentId}`
 
 interface AnswerTable {
   headers: string[]
@@ -39,7 +46,9 @@ function createWelcomeMessage(): Message {
   return {
     id: 'welcome',
     role: 'assistant',
-    text: 'Ciao! Sono historyGenie. Poni una domanda sui documenti caricati nel dataset RAGFlow.',
+    text: props.collectionId
+      ? 'Ciao! Sono historyGenie. Poni una domanda sui documenti di questa collezione.'
+      : 'Ciao! Sono historyGenie. Poni una domanda sui documenti caricati nel dataset RAGFlow.',
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   }
 }
@@ -101,9 +110,11 @@ async function handleSendMessage() {
   await scrollToBottom()
 
   try {
-    const response = props.publicDocument
-      ? await askPublicDocumentQuestion(documentId, query)
-      : await askDocumentQuestion(documentId, query)
+    const response = props.collectionId
+        ? await askCollectionQuestion(props.collectionId, query)
+        : props.publicDocument
+            ? await askPublicDocumentQuestion(documentId, query)
+            : await askDocumentQuestion(documentId, query)
     const assistantMessage: Message = {
       id: 'res-' + Date.now(),
       role: 'assistant',
@@ -134,7 +145,9 @@ function clearChat() {
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti caricati!',
+      text: props.collectionId
+        ? 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti della collezione!'
+        : 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti caricati!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]
@@ -247,7 +260,9 @@ function openCitation(citation: Citation) {
           </svg>
         </div>
         <div>
-          <h3 class="font-semibold text-slate-800 text-sm leading-tight">historyGenie Chat</h3>
+          <h3 class="font-semibold text-slate-800 text-sm leading-tight">
+            {{ props.collectionId ? 'Chat della collezione' : 'historyGenie Chat' }}
+          </h3>
           <div class="flex items-center gap-1 text-[11px] text-emerald-600">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             RAGFlow attivo
@@ -420,7 +435,9 @@ function openCitation(citation: Citation) {
         <input
           v-model="inputQuery"
           type="text"
-          placeholder="Scrivi una domanda sui documenti... (Premi Invio)"
+          :placeholder="props.collectionId
+            ? 'Scrivi una domanda sulla collezione... (Premi Invio)'
+            : 'Scrivi una domanda sui documenti... (Premi Invio)'"
           class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
           :disabled="isLoading"
           @keyup.enter="handleSendMessage"

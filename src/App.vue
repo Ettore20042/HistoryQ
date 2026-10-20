@@ -5,6 +5,8 @@ import router from './router'
 import { useNotifications } from '@/services/useNotifications.ts'
 import NotificationPanel from '@/views/panels/NotificationsPanels.vue'
 import { ref } from 'vue'
+import { RouterLink, RouterView } from 'vue-router'
+import { isAuthenticated } from './services/auth'
 
 const panelOpen = ref(false)
 const { unreadCount } = useNotifications()
@@ -67,6 +69,13 @@ function handleLogout() {
           </RouterLink>
 
           <template v-if="authState.token">
+            <RouterLink
+                v-if="isAuthenticated()"
+                to="/collections"
+                class="..."
+            >
+              Collezioni
+            </RouterLink>
             <button
                 type="button"
                 class="relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#102a43]"

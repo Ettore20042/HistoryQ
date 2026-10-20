@@ -74,7 +74,6 @@ export async function askDocumentQuestion(documentId: string, question: string):
   if (!response.ok) throw new Error(await response.text() || 'Errore durante la richiesta alla chat.')
   return await response.json() as ChatResponse
 }
-
 export async function askPublicDocumentQuestion(documentId: string, question: string): Promise<ChatResponse> {
   const response = await fetch(`/api/public/documents/${documentId}/chat`, {
     method: 'POST',
@@ -159,4 +158,29 @@ export async function getPublicPageTranscription(documentId: string, filename: s
   const response = await fetch(`/api/public/documents/${documentId}/page-transcriptions/${encodeURIComponent(filename)}`)
   if (!response.ok) throw new Error('Impossibile recuperare la trascrizione pubblica.')
   return await response.json() as PageTranscriptionResponse
+}
+
+export async function askCollectionQuestion(
+    collectionId: string,
+    question: string
+): Promise<ChatResponse> {
+  const response = await authenticatedFetch(
+      `/api/collections/${collectionId}/chat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      }
+  )
+
+  if (!response.ok) {
+    throw new Error(
+        await response.text() ||
+        'Errore durante la richiesta alla chat della collezione.'
+    )
+  }
+
+  return await response.json() as ChatResponse
 }

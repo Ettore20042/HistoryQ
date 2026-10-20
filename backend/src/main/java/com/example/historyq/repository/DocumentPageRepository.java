@@ -17,4 +17,5 @@ public interface DocumentPageRepository
             UUID documentId,
             String filename
     );
+    List<DocumentPage> findAllByDocument_Id(UUID documentId);
 }

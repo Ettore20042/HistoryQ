@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { getPublicDocumentPreview } from '../services/api'
+import AddToCollectionButton from '@/components/AddToCollectionButton.vue'
 
 interface PublicDocument {
   id: string
@@ -142,12 +143,19 @@ onBeforeUnmount(() => {
             </span>
           </p>
 
-          <RouterLink
-              :to="`/documents/${doc.id}`"
-              class="inline-flex rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
-          >
-            Consulta documento
-          </RouterLink>
+          <div class="flex flex-wrap items-center gap-3">
+            <RouterLink
+                :to="`/documents/${doc.id}`"
+                class="inline-flex rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
+            >
+              Consulta documento
+            </RouterLink>
+
+            <AddToCollectionButton
+                :document-id="doc.id"
+                :document-name="doc.displayName"
+            />
+          </div>
         </div>
       </article>
     </section>
