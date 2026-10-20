@@ -1,74 +1,9 @@
 import { ref, watch } from 'vue'
-import { authState } from './auth'
+import { authenticatedFetch, authState } from './auth'
 
 const unreadCount = ref<number>(0)
 let pollingInterval: ReturnType<typeof setInterval> | undefined
 let initialized = false
-
-async function fetchUnreadCount(): Promise<void> {
-    const token = authState.token
-    console.log('Token presente:', Boolean(token))
-    console.log('Lunghezza token:', token?.length ?? 0)
-    if (!token) {
-        unreadCount.value = 0
-        return
-    }
-    try {
-        const response = await fetch('/api/notifications/unread-count', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-        })
-        if (!response.ok)
-            throw new Error(`HTTP ${response.status} - Failed to fetch unread notifications count`)
-        const data: { count: number } = await response.json()
-        unreadCount.value = Number(data.count)
-    } catch (error) {
-        console.error('Error fetching unread notifications count:', error)
-    }
-}
-
-function startPolling(): void {
-    if (pollingInterval) clearInterval(pollingInterval)
-    void fetchUnreadCount()
-    pollingInterval = setInterval(fetchUnreadCount, 60000)
-}
-
-function stopPolling(): void {
-    if (pollingInterval) {
-        clearInterval(pollingInterval)
-        pollingInterval = undefined
-    }
-    unreadCount.value = 0
-}
-
-export function useNotifications() {
-    if (!initialized) {
-        initialized = true
-        // Reagisce immediatamente al login/logout senza aspettare il prossimo poll
-        watch(
-            () => authState.token,
-            (token) => {
-                if (token) {
-                    startPolling()
-                } else {
-                    stopPolling()
-                }
-            },
-            { immediate: true }
-        )
-    }
-    return {
-        unreadCount,
-        refreshUnreadCount: fetchUnreadCount,
-        notifications,
-        loadingNotifications,
-        refreshNotifications: fetchNotifications,
-        markAsRead,
-        markAllAsRead,
-    }
-}
-
-
 
 export interface NotificationItem {
     id: string
@@ -78,30 +13,46 @@ export interface NotificationItem {
     read: boolean
     createdAt: string
     documentName?: string
-
+    teamId?: string
+    teamName?: string
+    invitedByUsername?: string
+    invitationStatus?: 'PENDING' | 'ACCEPTED' | 'DECLINED'
 }
 
 const notifications = ref<NotificationItem[]>([])
 const loadingNotifications = ref(false)
 
+async function fetchUnreadCount(): Promise<void> {
+    if (!authState.token) {
+        unreadCount.value = 0
+        return
+    }
+
+    try {
+        const response = await authenticatedFetch('/api/notifications/unread-count')
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`)
+        }
+        const data: { count: number } = await response.json()
+        unreadCount.value = Number(data.count)
+    } catch (error) {
+        console.error('Errore nel conteggio delle notifiche:', error)
+    }
+}
+
 async function fetchNotifications(): Promise<void> {
-    const token = authState.token
-    if (!token) {
+    if (!authState.token) {
         notifications.value = []
         return
     }
 
     loadingNotifications.value = true
     try {
-        const response = await fetch('/api/notifications', {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-
+        const response = await authenticatedFetch('/api/notifications')
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`)
         }
-
-        notifications.value = await response.json()
+        notifications.value = await response.json() as NotificationItem[]
     } catch (error) {
         console.error('Errore nel recupero delle notifiche:', error)
     } finally {
@@ -110,15 +61,11 @@ async function fetchNotifications(): Promise<void> {
 }
 
 async function markAsRead(id: string): Promise<void> {
-    const token = authState.token
-    if (!token) return
+    if (!authState.token) return
 
-    const response = await fetch(
+    const response = await authenticatedFetch(
         `/api/notifications/${encodeURIComponent(id)}/read`,
-        {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}` },
-        },
+        { method: 'PATCH' },
     )
 
     if (!response.ok) {
@@ -133,12 +80,10 @@ async function markAsRead(id: string): Promise<void> {
 }
 
 async function markAllAsRead(): Promise<void> {
-    const token = authState.token
-    if (!token) return
+    if (!authState.token) return
 
-    const response = await fetch('/api/notifications/read-all', {
+    const response = await authenticatedFetch('/api/notifications/read-all', {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
     })
 
     if (!response.ok) {
@@ -151,3 +96,72 @@ async function markAllAsRead(): Promise<void> {
     await fetchUnreadCount()
 }
 
+async function handleInvitation(
+    id: string,
+    action: 'accept' | 'decline'
+): Promise<NotificationItem> {
+    const response = await authenticatedFetch(
+        `/api/notifications/${encodeURIComponent(id)}/${action}-invitation`,
+        { method: 'POST' }
+    )
+
+    if (!response.ok) {
+        let message = action === 'accept'
+            ? "Impossibile accettare l'invito."
+            : "Impossibile rifiutare l'invito."
+        try {
+            const body = await response.json() as { message?: string }
+            if (body.message) message = body.message
+        } catch {
+            // La risposta potrebbe non contenere JSON.
+        }
+        throw new Error(message)
+    }
+
+    const updated = await response.json() as NotificationItem
+    const index = notifications.value.findIndex(item => item.id === id)
+    if (index >= 0) notifications.value[index] = updated
+    await fetchUnreadCount()
+    return updated
+}
+
+function startPolling(): void {
+    if (pollingInterval) clearInterval(pollingInterval)
+    void fetchUnreadCount()
+    pollingInterval = setInterval(fetchUnreadCount, 60000)
+}
+
+function stopPolling(): void {
+    if (pollingInterval) {
+        clearInterval(pollingInterval)
+        pollingInterval = undefined
+    }
+    unreadCount.value = 0
+    notifications.value = []
+}
+
+export function useNotifications() {
+    if (!initialized) {
+        initialized = true
+        watch(
+            () => authState.token,
+            (token) => {
+                if (token) startPolling()
+                else stopPolling()
+            },
+            { immediate: true }
+        )
+    }
+
+    return {
+        unreadCount,
+        refreshUnreadCount: fetchUnreadCount,
+        notifications,
+        loadingNotifications,
+        refreshNotifications: fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+        acceptInvitation: (id: string) => handleInvitation(id, 'accept'),
+        declineInvitation: (id: string) => handleInvitation(id, 'decline'),
+    }
+}

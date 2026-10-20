@@ -12,7 +12,9 @@ import {
   getPublicDocument,
   getPublicDocumentPage,
   getPublicDocumentPages,
-  getPublicPageTranscription
+  getPublicPageTranscription,
+  getTeamDocument,
+  getTeamDocumentPages, getTeamDocumentPage, getTeamPageTranscription, type TeamDocumentResponse, downloadTeamDocument
 } from '@/services/api'
 import RagChat from '@/components/RagChat.vue'
 
@@ -37,6 +39,7 @@ const route = useRoute()
 const router = useRouter()
 
 const documentId = computed(() => String(route.params.id))
+const teamId = computed(() => typeof route.query.teamId === 'string' ? route.query.teamId : '')
 const isOwner = ref(false)
 const document = ref<DocumentItem | null>(null)
 
@@ -71,9 +74,14 @@ async function loadDocument() {
   try {
     let foundDocument: DocumentItem | null = null
 
+    if (teamId.value) {
+      foundDocument = await getTeamDocument(teamId.value, documentId.value) as DocumentItem
+      isOwner.value = false
+    }
+
     // Prima cerchiamo tra i documenti dell'utente autenticato.
     try {
-      const documents = await getDocuments()
+      const documents = foundDocument ? [] : await getDocuments()
       foundDocument =
           documents.find(item => item.id === documentId.value) ?? null
 
@@ -102,8 +110,10 @@ async function loadDocument() {
 
     // Il proprietario usa le API private; il visitatore quelle pubbliche.
     try {
-      pageNames.value = isOwner.value
-          ? await getDocumentPages(documentId.value)
+      pageNames.value = teamId.value
+          ? await getTeamDocumentPages(teamId.value, documentId.value)
+          : isOwner.value
+              ? await getDocumentPages(documentId.value)
           : await getPublicDocumentPages(documentId.value)
 
       console.log('Pagine disponibili:', pageNames.value)
@@ -179,8 +189,10 @@ async function loadPage(index: number) {
     pageLoading.value = true
 
     try {
-      const url = isOwner.value
-          ? await getDocumentPage(documentId.value, filename)
+      const url = teamId.value
+          ? await getTeamDocumentPage(teamId.value, documentId.value, filename)
+          : isOwner.value
+              ? await getDocumentPage(documentId.value, filename)
           : await getPublicDocumentPage(documentId.value, filename)
 
       pageUrls.value[filename] = url
@@ -248,8 +260,10 @@ async function loadPageTranscription(filename: string) {
   pageTranscription.value = ''
 
   try {
-    const response = isOwner.value
-        ? await getPageTranscription(documentId.value, filename)
+    const response = teamId.value
+        ? await getTeamPageTranscription(teamId.value, documentId.value, filename)
+        : isOwner.value
+            ? await getPageTranscription(documentId.value, filename)
         : await getPublicPageTranscription(documentId.value, filename)
 
     pageTranscription.value = response.ocrText ?? ''
@@ -262,6 +276,25 @@ async function loadPageTranscription(filename: string) {
     pageTranscriptionLoading.value = false
   }
 }
+const sharedDocumentsError = ref('')
+async function downloadSharedDocument(
+    documentId: string,
+    displayName: string
+) {
+  const currentTeamId = teamId.value
+
+  if (!currentTeamId) return
+
+  try {
+    await downloadTeamDocument(currentTeamId, documentId, displayName)
+  } catch (error) {
+    sharedDocumentsError.value =
+        error instanceof Error
+            ? error.message
+            : 'Impossibile scaricare il documento.'
+  }
+}
+
 
 async function savePageTranscription() {
   // Controllo aggiuntivo lato frontend.
@@ -387,12 +420,29 @@ onBeforeUnmount(() => {
           </p>
         </div>
 
-        <span
-            class="self-start rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700 sm:self-auto"
-        >
-          {{ document.status }}
-        </span>
+        <div class="flex flex-col items-end gap-2 self-start sm:self-center">
+          <span
+              class="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700"
+          >
+            {{ document.status }}
+          </span>
+
+          <button
+              v-if="teamId && document"
+              type="button"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+              @click="
+                downloadSharedDocument(
+                  document.id,
+                  document.displayName || document.originalName
+                )
+              "
+          >
+            Scarica
+          </button>
+        </div>
       </div>
+
     </section>
 
     <section
@@ -560,6 +610,7 @@ onBeforeUnmount(() => {
       <div class="min-w-0">
         <RagChat
             :public-document="!isOwner"
+                :team-id="teamId || undefined"
             @citation-page="goToCitationPage"
         />
       </div>

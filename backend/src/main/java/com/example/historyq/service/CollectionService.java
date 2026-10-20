@@ -36,8 +36,9 @@ public class CollectionService {
     private final DocumentPageRepository documentPageRepository;
     private final RagFlowService ragFlowService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TeamCollectionService teamCollectionService;
 
-    public CollectionService(CollectionRepository collectionRepository, CollectionDocumentRepository collectionDocumentRepository, UserRepository userRepository, DocumentRepository documentRepository, DocumentPageRepository documentPageRepository, RagFlowService ragFlowService, ApplicationEventPublisher eventPublisher) {
+    public CollectionService(CollectionRepository collectionRepository, CollectionDocumentRepository collectionDocumentRepository, UserRepository userRepository, DocumentRepository documentRepository, DocumentPageRepository documentPageRepository, RagFlowService ragFlowService, ApplicationEventPublisher eventPublisher, TeamCollectionService teamCollectionService) {
         this.collectionRepository = collectionRepository;
         this.collectionDocumentRepository = collectionDocumentRepository;
         this.userRepository = userRepository;
@@ -45,6 +46,7 @@ public class CollectionService {
         this.documentPageRepository = documentPageRepository;
         this.ragFlowService = ragFlowService;
         this.eventPublisher = eventPublisher;
+        this.teamCollectionService = teamCollectionService;
     }
     public List<Collection> getMyCollections(User user) {
         return collectionRepository.findByOwnerId(user.getId());
@@ -124,6 +126,17 @@ public class CollectionService {
                 ));
     }
 
+    public Collection getCollectionById(UUID collectionId, User user, UUID teamId) {
+        if (teamId == null) return getCollectionById(collectionId, user);
+        if (!teamCollectionService.canAccess(teamId, collectionId, user)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Collezione non trovata");
+        }
+        return collectionRepository.findById(collectionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Collezione non trovata"));
+    }
+
     public List<CollectionDocument> getCollectionDocuments(
             UUID collectionId,
             User user) {
@@ -162,6 +175,22 @@ public class CollectionService {
                     );
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CollectionDocumentResponse> getCollectionDocumentResponses(
+            UUID collectionId, User user, UUID teamId) {
+        getCollectionById(collectionId, user, teamId);
+        return collectionDocumentRepository.findAllByCollection_Id(collectionId)
+                .stream().map(association -> {
+                    Document document = association.getDocument();
+                    return new CollectionDocumentResponse(document.getId(),
+                            document.getDisplayName(), document.getDescription(),
+                            document.getOriginalName(), document.getHistoricalDate(),
+                            document.getAuthor(), document.getArchiveSource(),
+                            document.getPageCount(), document.getStatus(),
+                            association.getStatus(), association.getAddedAt());
+                }).toList();
     }
 
     public String getOrCreateCollectionChat(
@@ -215,6 +244,9 @@ public class CollectionService {
         return chatId;
     }
 
-
+    public String getOrCreateCollectionChat(UUID collectionId, User user, UUID teamId) {
+        getCollectionById(collectionId, user, teamId);
+        return getOrCreateCollectionChat(collectionId, user);
+    }
 
 }

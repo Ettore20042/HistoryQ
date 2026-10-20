@@ -4,6 +4,7 @@ import {
   askCollectionQuestion,
   askDocumentQuestion,
   askPublicDocumentQuestion,
+  askTeamDocumentQuestion,
 } from '@/services/api'
 import { useRoute } from 'vue-router'
 
@@ -13,6 +14,7 @@ const documentId = route.params.id as string
 const props = defineProps<{
   publicDocument?: boolean
   collectionId?: string
+  teamId?: string
 }>()
 
 interface Message {
@@ -111,7 +113,9 @@ async function handleSendMessage() {
 
   try {
     const response = props.collectionId
-        ? await askCollectionQuestion(props.collectionId, query)
+        ? await askCollectionQuestion(props.collectionId, query, props.teamId)
+        : props.teamId
+            ? await askTeamDocumentQuestion(props.teamId, documentId, query)
         : props.publicDocument
             ? await askPublicDocumentQuestion(documentId, query)
             : await askDocumentQuestion(documentId, query)

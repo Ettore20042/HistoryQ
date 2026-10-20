@@ -12,12 +12,29 @@ public record NotificationResponse(
         String type,
         boolean read,
         OffsetDateTime createdAt,
-        String documentName
+        String documentName,
+        UUID teamId,
+        String teamName,
+        String invitedByUsername,
+        String invitationStatus
 ) {
     public static NotificationResponse from(Notification notification) {
         String documentName = notification.getDocument() != null
                 ? notification.getDocument().getDisplayName()
                 : null;
+        String teamName = null;
+        UUID teamId = null;
+        String invitedByUsername = null;
+        String invitationStatus = null;
+
+        if (notification.getTeamInvitation() != null) {
+            teamName = notification.getTeamInvitation().getTeam().getName();
+            teamId = notification.getTeamInvitation().getTeam().getId();
+            invitedByUsername =
+                    notification.getTeamInvitation().getInvitedBy().getUsername();
+            invitationStatus =
+                    notification.getTeamInvitation().getStatus().name();
+        }
 
         return new NotificationResponse(
                 notification.getId(),
@@ -26,7 +43,11 @@ public record NotificationResponse(
                 notification.getType(),
                 notification.isRead(),
                 notification.getCreatedAt(),
-                documentName
+                documentName,
+                teamId,
+                teamName,
+                invitedByUsername,
+                invitationStatus
         );
     }
 }

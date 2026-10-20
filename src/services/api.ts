@@ -74,6 +74,29 @@ export async function askDocumentQuestion(documentId: string, question: string):
   if (!response.ok) throw new Error(await response.text() || 'Errore durante la richiesta alla chat.')
   return await response.json() as ChatResponse
 }
+export async function askTeamDocumentQuestion(teamId: string, documentId: string, question: string): Promise<ChatResponse> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/chat`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  })
+  if (!response.ok) throw new Error(await response.text() || 'Errore durante la richiesta alla chat.')
+  return await response.json() as ChatResponse
+}
+export async function getTeamDocumentPages(teamId: string, documentId: string): Promise<string[]> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/pages`)
+  if (!response.ok) throw new Error('Impossibile recuperare le pagine del documento.')
+  return await response.json() as string[]
+}
+export async function getTeamDocumentPage(teamId: string, documentId: string, filename: string): Promise<string> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/pages/image/${encodeURIComponent(filename)}`)
+  if (!response.ok) throw new Error('Impossibile caricare la pagina.')
+  return URL.createObjectURL(await response.blob())
+}
+export async function getTeamPageTranscription(teamId: string, documentId: string, filename: string): Promise<PageTranscriptionResponse> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/page-transcriptions/${encodeURIComponent(filename)}`)
+  if (!response.ok) throw new Error('Impossibile recuperare la trascrizione.')
+  return await response.json() as PageTranscriptionResponse
+}
 export async function askPublicDocumentQuestion(documentId: string, question: string): Promise<ChatResponse> {
   const response = await fetch(`/api/public/documents/${documentId}/chat`, {
     method: 'POST',
@@ -162,10 +185,11 @@ export async function getPublicPageTranscription(documentId: string, filename: s
 
 export async function askCollectionQuestion(
     collectionId: string,
-    question: string
+    question: string,
+    teamId?: string
 ): Promise<ChatResponse> {
   const response = await authenticatedFetch(
-      `/api/collections/${collectionId}/chat`,
+      `/api/collections/${collectionId}/chat${teamId ? `?teamId=${teamId}` : ''}`,
       {
         method: 'POST',
         headers: {
@@ -173,6 +197,7 @@ export async function askCollectionQuestion(
         },
         body: JSON.stringify({ question }),
       }
+
   )
 
   if (!response.ok) {
@@ -183,4 +208,232 @@ export async function askCollectionQuestion(
   }
 
   return await response.json() as ChatResponse
+}
+
+export interface TeamCollectionResponse {
+  id: string
+  name: string
+  description: string | null
+  visibility: string
+  createdAt: string
+  addedBy?: string | null
+}
+export async function getTeamCollections(teamId: string): Promise<TeamCollectionResponse[]> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/collections`)
+  if (!response.ok) throw new Error('Impossibile recuperare le collezioni condivise.')
+  return await response.json() as TeamCollectionResponse[]
+}
+export async function getTeamCollectionCandidates(teamId: string, source = 'ALL', query = ''): Promise<TeamCollectionResponse[]> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/collections/candidates?source=${source}&query=${encodeURIComponent(query)}`)
+  if (!response.ok) throw new Error('Impossibile recuperare le collezioni disponibili.')
+  return await response.json() as TeamCollectionResponse[]
+}
+export async function addTeamCollections(teamId: string, collectionIds: string[]): Promise<TeamCollectionResponse[]> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/collections`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ collectionIds }),
+  })
+  if (!response.ok) throw new Error(await response.text() || 'Impossibile condividere le collezioni.')
+  return await response.json() as TeamCollectionResponse[]
+}
+export async function removeTeamCollection(teamId: string, collectionId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/collections/${collectionId}`, { method: 'DELETE' })
+  if (!response.ok) throw new Error(await response.text() || 'Impossibile rimuovere la collezione.')
+}
+
+export interface TeamResponse {
+    id: string
+    name: string
+    description:string|null
+    createdBy:unknown
+}
+export interface CreateTeamRequest{
+    name: string
+    description:string|null
+}
+export async function getTeam(teamId:string): Promise<TeamResponse> {
+    const response = await authenticatedFetch(`/api/teams/${teamId}`)
+    if (!response.ok) throw new Error('Failed to get team')
+    return await response.json() as TeamResponse
+}
+
+export async function getTeams(): Promise<TeamResponse[]> {
+    const response = await authenticatedFetch('/api/teams')
+    if (!response.ok) throw new Error('Failed to get teams')
+    return await response.json() as TeamResponse[]
+}
+export async function createTeam(team: CreateTeamRequest): Promise<TeamResponse> {
+    const response = await authenticatedFetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(team),
+    })
+    if (!response.ok) throw new Error('Failed to create team')
+    return await response.json() as TeamResponse
+}
+
+export interface TeamMemberResponse {
+  userId: string
+  username: string
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+}
+
+export async function getTeamMembers(
+    teamId: string
+): Promise<TeamMemberResponse[]> {
+  const response = await authenticatedFetch(
+      `/api/teams/${teamId}/members`
+  )
+
+  if (!response.ok) {
+    throw new Error(
+        `Impossibile recuperare i membri del team (${response.status})`
+    )
+  }
+
+  return await response.json() as TeamMemberResponse[]
+}
+export interface TeamInvitationResponse {
+  id: string;
+  email: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+}
+
+export async function inviteTeamMember(
+    teamId: string,
+    email: string
+): Promise<TeamInvitationResponse> {
+  const response = await authenticatedFetch(
+      `/api/teams/${teamId}/invitations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      }
+  );
+
+  if (!response.ok) {
+    let message = "Impossibile inviare l'invito.";
+
+    try {
+      const errorBody = await response.json();
+      if (typeof errorBody.message === 'string') {
+        message = errorBody.message;
+      } else if (typeof errorBody.detail === 'string') {
+        message = errorBody.detail;
+      }
+    } catch {
+      // La risposta potrebbe non contenere JSON.
+    }
+
+    if (message === "Impossibile inviare l'invito.") {
+      if (response.status === 400) {
+        message = "Inserisci un indirizzo email valido.";
+      } else if (response.status === 403) {
+        message = "Non hai i permessi per invitare utenti in questo Team.";
+      } else if (response.status >= 500) {
+        message = "Si è verificato un errore interno. Riprova più tardi.";
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  return await response.json() as TeamInvitationResponse;
+}
+
+export interface TeamDocumentResponse {
+  id: string
+  displayName: string
+  originalName: string
+  author: string | null
+  createdAt: string
+  visibility: 'PUBLIC' | 'PRIVATE'
+  status: string
+  addedBy: string | null
+}
+
+async function readTeamDocumentResponse(response: Response): Promise<TeamDocumentResponse[]> {
+  if (!response.ok) {
+    throw new Error(`Errore documenti condivisi (${response.status})`)
+  }
+  return await response.json() as TeamDocumentResponse[]
+}
+
+export async function getTeamDocuments(teamId: string): Promise<TeamDocumentResponse[]> {
+  return readTeamDocumentResponse(
+      await authenticatedFetch(`/api/teams/${teamId}/documents`)
+  )
+}
+export async function getTeamDocument(teamId: string, documentId: string): Promise<DocumentResponse> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}`)
+  if (!response.ok) throw new Error('Documento non trovato o non accessibile.')
+  return await response.json() as DocumentResponse
+}
+
+export async function getTeamDocumentCandidates(
+    teamId: string,
+    source: 'ALL' | 'PERSONAL' | 'PUBLIC',
+    query = ''
+): Promise<TeamDocumentResponse[]> {
+  return readTeamDocumentResponse(
+      await authenticatedFetch(
+          `/api/teams/${teamId}/documents/candidates?source=${source}&query=${encodeURIComponent(query)}`
+      )
+  )
+}
+
+export async function addTeamDocuments(
+    teamId: string,
+    documentIds: string[]
+): Promise<TeamDocumentResponse[]> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documentIds }),
+  })
+  return readTeamDocumentResponse(response)
+}
+
+export async function removeTeamDocument(
+    teamId: string,
+    documentId: string
+): Promise<void> {
+  const response = await authenticatedFetch(
+      `/api/teams/${teamId}/documents/${documentId}`,
+      { method: 'DELETE' }
+  )
+  if (!response.ok) {
+    throw new Error(`Impossibile rimuovere il documento (${response.status})`)
+  }
+}
+
+export async function getTeamDocumentPreview(
+    teamId: string,
+    documentId: string
+): Promise<string> {
+  const response = await authenticatedFetch(
+      `/api/teams/${teamId}/documents/${documentId}/preview`
+  )
+  if (!response.ok) throw new Error('Impossibile caricare l’anteprima.')
+  return URL.createObjectURL(await response.blob())
+}
+
+export async function downloadTeamDocument(
+    teamId: string,
+    documentId: string,
+    displayName: string
+): Promise<void> {
+  const response = await authenticatedFetch(
+      `/api/teams/${teamId}/documents/${documentId}/download`
+  )
+  if (!response.ok) throw new Error('Impossibile scaricare il documento.')
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${displayName}.zip`
+  link.click()
+  URL.revokeObjectURL(url)
 }

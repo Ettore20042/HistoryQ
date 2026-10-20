@@ -45,6 +45,17 @@ public class Notification {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
+    @Column(name = "team_invitation_id")
+    private UUID teamInvitationId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "team_invitation_id",
+            insertable = false,
+            updatable = false
+    )
+    private TeamInvitation teamInvitation;
+
     public Notification() {
     }
 
@@ -54,6 +65,26 @@ public class Notification {
 
     public User getUser() {
         return user;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getTeamInvitationId() {
+        return teamInvitationId;
+    }
+
+    public void setTeamInvitationId(UUID teamInvitationId) {
+        this.teamInvitationId = teamInvitationId;
+    }
+
+    public TeamInvitation getTeamInvitation() {
+        return teamInvitation;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public void setUser(User user) {

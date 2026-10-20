@@ -35,6 +35,7 @@ const collection = ref<Collection | null>(null)
 const documents = ref<CollectionDocument[]>([])
 const loading = ref(true)
 const error = ref('')
+const teamId = typeof route.query.teamId === 'string' ? route.query.teamId : ''
 
 async function loadCollection() {
   loading.value = true
@@ -53,8 +54,8 @@ async function loadCollection() {
     }
 
     const [collectionResponse, documentsResponse] = await Promise.all([
-      fetch(`/api/collections/${collectionId}`, { headers }),
-      fetch(`/api/collections/${collectionId}/documents`, { headers }),
+      fetch(`/api/collections/${collectionId}${teamId ? `?teamId=${teamId}` : ''}`, { headers }),
+      fetch(`/api/collections/${collectionId}/documents${teamId ? `?teamId=${teamId}` : ''}`, { headers }),
     ])
 
     if (
@@ -83,7 +84,7 @@ async function loadCollection() {
 }
 
 function openDocument(documentId: string) {
-  router.push(`/documents/${documentId}`)
+  router.push(`/documents/${documentId}${teamId ? `?teamId=${teamId}` : ''}`)
 }
 
 function formatDate(value: string | null) {
@@ -264,7 +265,10 @@ onMounted(loadCollection)
         </div>
 
         <div class="xl:sticky xl:top-6">
-          <RagChat :collection-id="String(route.params.id)" />
+          <RagChat
+              :collection-id="String(route.params.id)"
+              :team-id="teamId || undefined"
+          />
         </div>
       </section>
     </template>

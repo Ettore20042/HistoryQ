@@ -92,7 +92,14 @@ export function authenticatedFetch(
   }
 
   return fetch(input, { ...init, headers }).then(response => {
-    if (response.status === 401) logout()
+    // Do not clear a newer session because of a response from an older request.
+    if (
+      response.status === 401 &&
+      token !== null &&
+      localStorage.getItem(TOKEN_KEY) === token
+    ) {
+      logout()
+    }
     return response
   })
 }

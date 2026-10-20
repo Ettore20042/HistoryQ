@@ -23,9 +23,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.security.core.Authentication;
 import com.example.historyq.service.RagFlowService;
+import com.example.historyq.service.TeamCollectionService;
 
 import com.example.historyq.dto.CreateCollectionRequest;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,11 +42,13 @@ public class CollectionController {
     private final CollectionService collectionService;
     private final UserRepository userRepository;
     private final RagFlowService ragFlowService;
+    private final TeamCollectionService teamCollectionService;
 
-    public CollectionController(CollectionService collectionService, UserRepository userRepository,RagFlowService ragFlowService) {
+    public CollectionController(CollectionService collectionService, UserRepository userRepository,RagFlowService ragFlowService, TeamCollectionService teamCollectionService) {
         this.collectionService = collectionService;
         this.userRepository = userRepository;
         this.ragFlowService = ragFlowService;
+        this.teamCollectionService = teamCollectionService;
     }
 
 
@@ -119,12 +123,13 @@ public class CollectionController {
     @GetMapping("/{collectionId}")
     public ResponseEntity<CollectionResponse> getCollection(
             @PathVariable UUID collectionId,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestParam(required = false) UUID teamId) {
 
         User user = getAuthenticatedUser(authentication);
 
         Collection collection =
-                collectionService.getCollectionById(collectionId, user);
+                collectionService.getCollectionById(collectionId, user, teamId);
 
         CollectionResponse response = new CollectionResponse(
                 collection.getId(),
@@ -140,14 +145,15 @@ public class CollectionController {
     @GetMapping("/{collectionId}/documents")
     public ResponseEntity<List<CollectionDocumentResponse>> getCollectionDocuments(
             @PathVariable UUID collectionId,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestParam(required = false) UUID teamId) {
 
         User user = getAuthenticatedUser(authentication);
 
         List<CollectionDocumentResponse> documents =
                 collectionService.getCollectionDocumentResponses(
                         collectionId,
-                        user
+                        user, teamId
                 );
 
         return ResponseEntity.ok(documents);
@@ -157,7 +163,8 @@ public class CollectionController {
     public ResponseEntity<?> chat(
             @PathVariable UUID collectionId,
             @RequestBody Map<String, String> request,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestParam(required = false) UUID teamId) {
 
         try {
             String question = request.get("question");
@@ -171,7 +178,7 @@ public class CollectionController {
 
             String chatId = collectionService.getOrCreateCollectionChat(
                     collectionId,
-                    user
+                    user, teamId
             );
 
             Map<String, Object> result = ragFlowService.askQuestion(

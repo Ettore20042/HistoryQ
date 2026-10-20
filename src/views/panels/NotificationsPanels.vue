@@ -1,6 +1,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useNotifications } from '@/services/useNotifications'
 
 const props = defineProps<{ open: boolean }>()
@@ -12,9 +13,13 @@ const {
   refreshNotifications,
   markAsRead,
   markAllAsRead,
+  acceptInvitation,
+  declineInvitation,
 } = useNotifications()
 
 const errorMessage = ref('')
+const invitationLoading = ref<string | null>(null)
+const router = useRouter()
 
 watch(
     () => props.open,
@@ -59,6 +64,35 @@ async function handleMarkAllAsRead() {
   } catch (error) {
     console.error('Errore durante la lettura delle notifiche:', error)
     errorMessage.value = 'Impossibile segnare tutte le notifiche come lette.'
+  }
+}
+
+async function handleInvitationAction(
+    id: string,
+    action: 'accept' | 'decline'
+) {
+  errorMessage.value = ''
+  invitationLoading.value = id
+
+  try {
+    if (action === 'accept') {
+      await acceptInvitation(id)
+    } else {
+      await declineInvitation(id)
+    }
+  } catch (error) {
+    errorMessage.value = error instanceof Error
+        ? error.message
+        : 'Impossibile aggiornare l’invito.'
+  } finally {
+    invitationLoading.value = null
+  }
+}
+
+function openTeam(teamId?: string) {
+  if (teamId) {
+    emit('close')
+    void router.push(`/teams/${teamId}`)
   }
 }
 </script>
@@ -141,12 +175,68 @@ async function handleMarkAllAsRead() {
 
             <div class="min-w-0 flex-1">
               <h3 class="font-medium text-slate-900">
-                {{ notification.documentName }}
+                {{ notification.teamName || notification.documentName || notification.title }}
               </h3>
+
+              <p
+                  v-if="notification.type === 'TEAM_INVITATION' && notification.invitedByUsername"
+                  class="mt-1 text-xs text-slate-500"
+              >
+                Invitato da {{ notification.invitedByUsername }}
+              </p>
 
               <p class="mt-1 text-sm text-slate-600">
                 {{ notification.message }}
               </p>
+
+              <div
+                  v-if="notification.type === 'TEAM_INVITATION'"
+                  class="mt-3"
+              >
+                <div
+                    v-if="notification.invitationStatus === 'PENDING'"
+                    class="flex gap-2"
+                >
+                  <button
+                      type="button"
+                      class="rounded-lg bg-green-700 px-3 py-2 text-xs font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      :disabled="invitationLoading === notification.id"
+                      @click="handleInvitationAction(notification.id, 'accept')"
+                  >
+                    {{ invitationLoading === notification.id ? 'Aggiornamento...' : 'Accetta' }}
+                  </button>
+                  <button
+                      type="button"
+                      class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      :disabled="invitationLoading === notification.id"
+                      @click="handleInvitationAction(notification.id, 'decline')"
+                  >
+                    Rifiuta
+                  </button>
+                </div>
+
+                <div
+                    v-else-if="notification.invitationStatus === 'ACCEPTED'"
+                    class="flex items-center gap-3 text-sm font-medium text-green-700"
+                >
+                  <span>Invito accettato.</span>
+                  <button
+                      v-if="notification.teamId"
+                      type="button"
+                      class="text-blue-700 hover:underline"
+                      @click="openTeam(notification.teamId)"
+                  >
+                    Apri Team
+                  </button>
+                </div>
+
+                <p
+                    v-else-if="notification.invitationStatus === 'DECLINED'"
+                    class="text-sm font-medium text-slate-500"
+                >
+                  Invito rifiutato.
+                </p>
+              </div>
 
               <p class="mt-2 text-xs text-slate-400">
                 {{ formatDate(notification.createdAt) }}

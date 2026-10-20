@@ -12,11 +12,16 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger =
+            LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
@@ -54,8 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
-        } catch (RuntimeException ignored) {
-            System.out.println("Token JWT non valido: " + ignored.getMessage());
+        } catch (RuntimeException exception) {
+            logger.debug("Token JWT non valido per {}: {}",
+                    request.getRequestURI(),
+                    exception.getMessage());
         }
 
         filterChain.doFilter(request, response);

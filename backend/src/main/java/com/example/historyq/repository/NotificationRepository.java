@@ -16,4 +16,9 @@ public interface NotificationRepository
     long countByUserAndReadFalse(User user);
     Optional<Notification> findByIdAndUser(UUID id, User user);
     List<Notification> findByUserAndReadFalse(User user);
+
+    boolean existsByUserIdAndTeamInvitationId(
+            UUID userId,
+            UUID teamInvitationId
+    );
 }

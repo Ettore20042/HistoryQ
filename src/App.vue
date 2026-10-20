@@ -72,9 +72,17 @@ function handleLogout() {
             <RouterLink
                 v-if="isAuthenticated()"
                 to="/collections"
-                class="..."
+                class="rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#102a43]"
+                active-class="bg-slate-100 text-[#102a43]"
             >
               Collezioni
+            </RouterLink>
+            <RouterLink
+                to="/teams"
+                class="rounded-md px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#102a43]"
+                active-class="bg-slate-100 text-[#102a43]"
+            >
+              Team
             </RouterLink>
             <button
                 type="button"
