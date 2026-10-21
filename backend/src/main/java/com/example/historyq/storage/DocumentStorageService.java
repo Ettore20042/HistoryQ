@@ -18,6 +18,7 @@ import io.minio.messages.Item;
 
 import java.util.ArrayList;
 import java.util.List;
+import io.minio.BucketExistsArgs;
 
 @Service
 public class DocumentStorageService {
@@ -121,6 +122,29 @@ public class DocumentStorageService {
 
         try (InputStream inputStream = download(objectName)) {
             return inputStream.readAllBytes();
+        }
+    }
+    public void uploadBytes(byte[] data, String objectName, String contentType)
+            throws Exception {
+
+        try (InputStream inputStream =
+                     new java.io.ByteArrayInputStream(data)) {
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .stream(inputStream, data.length, -1)
+                            .contentType(contentType)
+                            .build()
+            );
+        }
+    }
+    public void deleteByPrefix(String prefix) throws Exception {
+        List<String> objectNames = listObjects(prefix);
+
+        for (String objectName : objectNames) {
+            delete(objectName);
         }
     }
 }

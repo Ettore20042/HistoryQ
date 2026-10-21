@@ -148,7 +148,7 @@ async function pollDocumentStatus(id: string): Promise<void> {
       <input
           id="document-file"
           type="file"
-          accept=".jpg,.jpeg,.png,.tiff,.webp"
+          accept=".jpg,.jpeg,.png,.tiff,.webp,.pdf"
           @change="onFileSelected"
           class="hidden"
           multiple

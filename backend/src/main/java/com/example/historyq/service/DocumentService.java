@@ -14,6 +14,9 @@ import java.util.List;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
+import java.io.InputStream;
+import com.example.historyq.service.PdfToImageService;
+
 
 
 @Service
@@ -23,20 +26,23 @@ public class DocumentService {
     private final DocumentStorageService storageService;
     private final DocumentProcessingService documentProcessingService;
     private final UserRepository userRepository;
+    private final PdfToImageService pdfToImageService;
 
     private static final Set<String> ALLOWED_EXTENSIONS =
-            Set.of(".jpg", ".jpeg", ".png", ".tiff", ".webp");
+            Set.of(".jpg", ".jpeg", ".png", ".tiff", ".webp",".pdf");
 
     public DocumentService(
             DocumentRepository documentRepository,
             DocumentStorageService storageService,
             DocumentProcessingService documentProcessingService,
-            UserRepository userRepository
+            UserRepository userRepository,
+            PdfToImageService pdfToImageService
     ) {
         this.documentRepository = documentRepository;
         this.storageService = storageService;
         this.documentProcessingService = documentProcessingService;
         this.userRepository = userRepository;
+        this.pdfToImageService = pdfToImageService;
     }
 
     public Document upload(MultipartFile[] files,String displayName,String description,String historicalDate,String author,String archive_source) throws Exception {
@@ -70,6 +76,7 @@ public class DocumentService {
             );
         }
 
+
         // 2. Generazione UUID
         UUID documentId = UUID.randomUUID();
 
@@ -83,7 +90,7 @@ public class DocumentService {
         document.setId(documentId);
         document.setStatus("PROCESSING");
         document.setProgress(0);
-        document.setPageCount(files.length);
+
 
         MultipartFile firstFile = files[0];
 
@@ -103,15 +110,12 @@ public class DocumentService {
                 originalFilename
         );
 
+        String firstExtension = originalFilename.substring(
+                originalFilename.lastIndexOf(".")
+        ).toLowerCase();
+
         document.setStoredFilename(
-                String.format(
-                        "0001%s", // Il primo file sarà sempre "0001" con la sua estensione
-                        firstFile.getOriginalFilename()
-                                .substring(
-                                        firstFile.getOriginalFilename().lastIndexOf(".")    // Estrazione dell'estensione
-                                )
-                                .toLowerCase()
-                )
+                "0001" + (firstExtension.equals(".pdf") ? ".png" : firstExtension)
         );
 
         document.setFileType(firstFile.getContentType());
@@ -128,9 +132,17 @@ public class DocumentService {
 
         try {
             // 1. Upload di tutte le pagine su Silo
+            int pageNumber = 0;
+
             for (int i = 0; i < files.length; i++) {
                 MultipartFile file = files[i];
                 String filename = file.getOriginalFilename();
+
+                if (file.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Il file alla posizione " + (i + 1) + " è vuoto"
+                    );
+                }
 
                 if (filename == null || !filename.contains(".")) {
                     throw new IllegalArgumentException(
@@ -149,22 +161,51 @@ public class DocumentService {
                     );
                 }
 
-                String storedFilename = String.format(
-                        "%04d%s",
-                        i + 1,
-                        fileExtension
-                );
+                if (fileExtension.equals(".pdf")) {
+                    try (InputStream inputStream = file.getInputStream()) {
+                        List<byte[]> pages =
+                                pdfToImageService.convertToImages(inputStream);
 
-                storageService.upload(
-                        file,
-                        storagePath + storedFilename
-                );
+                        if (pages.isEmpty()) {
+                            throw new IllegalArgumentException(
+                                    "Il PDF non contiene pagine"
+                            );
+                        }
+
+                        for (byte[] pageBytes : pages) {
+                            pageNumber++;
+
+                            String storedFilename = String.format(
+                                    "%04d.png", pageNumber
+                            );
+
+                            storageService.uploadBytes(
+                                    pageBytes,
+                                    storagePath + storedFilename,
+                                    "image/png"
+                            );
+                        }
+                    }
+                } else {
+                    pageNumber++;
+
+                    String storedFilename = String.format(
+                            "%04d%s", pageNumber, fileExtension
+                    );
+
+                    storageService.upload(
+                            file,
+                            storagePath + storedFilename
+                    );
+                }
             }
+
+            document.setPageCount(pageNumber);
 
         } catch (Exception e) {
             // Pulizia solo se fallisce il caricamento delle immagini.
             try {
-                storageService.delete(storagePath);
+                storageService.deleteByPrefix(storagePath);
             } catch (Exception cleanupException) {
                 e.addSuppressed(cleanupException);
             }
