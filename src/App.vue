@@ -29,22 +29,65 @@ function handleLogout() {
             class="flex items-center gap-3"
             aria-label="HistoryQ home"
         >
-          <span
-              class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3f352b] text-[11px] font-bold tracking-wide text-white shadow-sm"
-          >
-            HQ
-          </span>
-
-          <span>
-            <span class="block text-base font-bold tracking-tight text-[#102a43]">
-              HistoryQ
-            </span>
-            <span
-                class="hidden text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400 sm:block"
+          <div class="flex items-center gap-3">
+            <div
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#29251f] shadow-sm"
             >
-              Document intelligence
-            </span>
-          </span>
+              <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 40 40"
+                  fill="none"
+                  class="h-7 w-7"
+                  aria-label="HistoryQ"
+                  role="img"
+              >
+                <!-- Documento -->
+                <path
+                    d="M9 5.5H22L29 12.5V31H9V5.5Z"
+                    stroke="#E8D6B5"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                />
+
+                <!-- Angolo piegato -->
+                <path
+                    d="M22 5.5V12.5H29"
+                    stroke="#E8D6B5"
+                    stroke-width="1.8"
+                    stroke-linejoin="round"
+                />
+
+                <!-- Righe del documento -->
+                <path
+                    d="M13 16H23M13 20H21M13 24H18"
+                    stroke="#E8D6B5"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                />
+
+                <!-- Lente di ricerca -->
+                <circle
+                    cx="27"
+                    cy="27"
+                    r="5.5"
+                    fill="#29251f"
+                    stroke="#C6A36A"
+                    stroke-width="2"
+                />
+                <path
+                    d="M31 31L35 35"
+                    stroke="#C6A36A"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                />
+              </svg>
+            </div>
+
+            <span class="text-lg font-semibold tracking-tight">
+    History<span class="text-[#9A7952]">Q</span>
+  </span>
+          </div>
+
         </RouterLink>
 
         <nav

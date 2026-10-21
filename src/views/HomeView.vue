@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import {getPublicDocumentPreview} from '../services/api'
+import {authState} from "@/services/auth.ts";
 
 interface PublicDocument {
   id: string
@@ -57,16 +58,30 @@ onMounted(async () => {
         <p class="mt-6 max-w-xl text-base leading-7 text-slate-500 sm:text-lg">
           Carica, elabora e interroga i tuoi archivi con OCR, ricerca semantica e RAG in un unico spazio di lavoro.
         </p>
+
         <RouterLink
             to="/documents"
             class="mt-8 inline-flex items-center gap-2 rounded-lg bg-[#102a43] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#173f61]"
         >
-          Accedi per iniziare
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
+          {{ authState.token ? 'Benvenuto! Esplora' : 'Accedi per iniziare' }}
+
+          <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+          >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5 12h14m-6-6 6 6-6 6"
+            />
           </svg>
         </RouterLink>
       </div>
+
 
       <div class="relative rounded-xl border border-[#e7dfd2] bg-[#f3eee6] p-5 sm:p-7">
         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
