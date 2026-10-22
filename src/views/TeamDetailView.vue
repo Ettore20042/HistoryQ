@@ -138,7 +138,7 @@ async function fetchTeam() {
 }
 
 function goBack() {
-  router.push('/teams')
+  router.back()
 }
 
 async function fetchTeamMembers() {
@@ -784,7 +784,7 @@ onMounted(() => {
               <li v-for="collection in sharedCollections" :key="collection.id"
                   class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
                 <button type="button" class="text-left font-medium text-blue-700 hover:underline"
-                    @click="router.push(`/collections/${collection.id}?teamId=${route.params.teamId}`)">
+                    @click="router.push(`/collections/${collection.id}`)">
                   {{ collection.name }}
                 </button>
                 <button v-if="canManageDocuments" type="button" class="text-xs text-red-700"

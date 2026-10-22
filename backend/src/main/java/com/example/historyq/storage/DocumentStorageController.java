@@ -20,6 +20,13 @@
         import java.util.List;
         import org.slf4j.Logger;
         import org.slf4j.LoggerFactory;
+        import java.io.ByteArrayInputStream;
+        import java.io.File;
+        import java.io.IOException;
+        import java.io.InputStream;
+        import java.util.ArrayList;
+        import java.util.Locale;
+        import java.util.Set;
 
 
         import java.util.Map;
@@ -57,12 +64,13 @@
                     @RequestParam("displayName") String displayName,
                     @RequestParam("historicalDate") String historicalDate,
                     @RequestParam("author") String author,
-                    @RequestParam("archive_source") String archive_source
+                    @RequestParam("archive_source") String archive_source,
+                    @RequestParam(value="engine",defaultValue="tesseract") String engine
             ) {
                 try {
 
                     Document document =
-                            documentService.upload(files, displayName, description, historicalDate, author, archive_source);
+                            documentService.upload(files, displayName, description, historicalDate, author, archive_source, engine);
 
                     return ResponseEntity.ok(document);
 
@@ -313,7 +321,155 @@
                 }
             }
 
+            @PostMapping("/{documentId}/reprocess")
+            public ResponseEntity<?> reprocessDocument(
+                    @PathVariable UUID documentId,
+                    @RequestBody Map<String, String> request
+            ) {
+                try {
+                    String engine = request.get("engine");
 
+                    if (engine == null || !Set.of(
+                            "tesseract",
+                            "churro",
+                            "lighton-1b",
+                            "lighton-4b"
+                    ).contains(engine)) {
+                        return ResponseEntity.badRequest()
+                                .body(Map.of("error", "Motore OCR non valido."));
+                    }
+
+                    // Recupera il documento originale e verifica la proprietà.
+                    Document original = documentService.getOwnedDocument(documentId);
+
+                    // Recupera le immagini già archiviate in MinIO.
+                    List<String> objects =
+                            documentStorageService.listObjects(original.getStoragePath());
+
+                    if (objects.isEmpty()) {
+                        return ResponseEntity.badRequest()
+                                .body(Map.of(
+                                        "error",
+                                        "Il documento non contiene pagine da rielaborare."
+                                ));
+                    }
+
+                    List<MultipartFile> files = new ArrayList<>();
+
+                    for (String objectName : objects) {
+                        String filename = objectName.substring(
+                                objectName.lastIndexOf('/') + 1
+                        );
+
+                        byte[] content =
+                                documentStorageService.downloadBytes(objectName);
+
+                        String lower = filename.toLowerCase(Locale.ROOT);
+                        String contentType;
+
+                        if (lower.endsWith(".png")) {
+                            contentType = "image/png";
+                        } else if (lower.endsWith(".jpg")
+                                || lower.endsWith(".jpeg")) {
+                            contentType = "image/jpeg";
+                        } else if (lower.endsWith(".tiff")
+                                || lower.endsWith(".tif")) {
+                            contentType = "image/tiff";
+                        } else if (lower.endsWith(".webp")) {
+                            contentType = "image/webp";
+                        } else {
+                            return ResponseEntity.badRequest()
+                                    .body(Map.of(
+                                            "error",
+                                            "Formato di pagina non supportato: " + filename
+                                    ));
+                        }
+
+                        files.add(new MultipartFile() {
+                            @Override
+                            public String getName() {
+                                return "files";
+                            }
+
+                            @Override
+                            public String getOriginalFilename() {
+                                return filename;
+                            }
+
+                            @Override
+                            public String getContentType() {
+                                return contentType;
+                            }
+
+                            @Override
+                            public boolean isEmpty() {
+                                return content.length == 0;
+                            }
+
+                            @Override
+                            public long getSize() {
+                                return content.length;
+                            }
+
+                            @Override
+                            public byte[] getBytes() {
+                                return content.clone();
+                            }
+
+                            @Override
+                            public InputStream getInputStream() {
+                                return new ByteArrayInputStream(content);
+                            }
+
+                            @Override
+                            public void transferTo(File dest) throws IOException {
+                                java.nio.file.Files.write(dest.toPath(), content);
+                            }
+                        });
+                    }
+
+                    // Riutilizza il normale upload: crea un nuovo documento
+                    // e avvia la pipeline OCR/RAGFlow con il motore selezionato.
+                    String duplicateName = original.getDisplayName() + " (copia OCR)";
+
+                    if (duplicateName.length() > 512) {
+                        duplicateName = duplicateName.substring(0, 512);
+                    }
+
+                    Document duplicate = documentService.upload(
+                            files.toArray(new MultipartFile[0]),
+                            duplicateName,
+                            original.getDescription(),
+                            original.getHistoricalDate(),
+                            original.getAuthor(),
+                            original.getArchiveSource(),
+                            engine
+                    );
+
+                    return ResponseEntity.accepted().body(Map.of(
+                            "documentId", duplicate.getId(),
+                            "displayName", duplicate.getDisplayName(),
+                            "status", duplicate.getStatus(),
+                            "engine", engine
+                    ));
+
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.notFound().build();
+
+                } catch (Exception e) {
+                    logger.error(
+                            "Errore durante la rielaborazione del documento {}",
+                            documentId,
+                            e
+                    );
+
+                    return ResponseEntity.internalServerError()
+                            .body(Map.of(
+                                    "error",
+                                    "Errore durante la rielaborazione del documento."
+                            ));
+                }
+            }
 
 
 

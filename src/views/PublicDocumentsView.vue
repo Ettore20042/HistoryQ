@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
       <article
           v-for="doc in documents"
           :key="doc.id"
-          class="group overflow-hidden rounded-2xl border border-[#d9cdbd] bg-[#fbf9f5] shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+          class="group overflow-hidden rounded-2xl border border-[#d9cdbd] bg-[#fbf9f5] shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg flex flex-col h-full"
       >
         <img
             v-if="previewUrls[doc.id]"
@@ -127,7 +127,7 @@ onBeforeUnmount(() => {
             class="h-48 w-full object-cover grayscale-[15%] transition duration-300 group-hover:scale-[1.02]"
         />
 
-        <div class="space-y-3 p-5">
+        <div class="flex flex-1 flex-col space-y-3 p-5">
           <h2 class="text-xl font-semibold text-slate-900">
             {{ doc.displayName }}
           </h2>
@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
             </span>
           </p>
 
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-[#d9cdbd] mt-auto">
             <RouterLink
                 :to="`/documents/${doc.id}`"
                 class="inline-flex rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"

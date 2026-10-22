@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.historyq.repository.DocumentPageRepository;
 import com.example.historyq.entity.DocumentPage;
+import org.springframework.beans.factory.annotation.Value;
+import java.time.Duration;
 
 
 // Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
@@ -28,6 +30,11 @@ public class DocumentProcessingService {
     private final NotificationService notificationService;
     private static final Logger logger = LoggerFactory.getLogger(DocumentProcessingService.class);
     private final DocumentPageRepository documentPageRepository;
+    @Value("${ocr.job.timeout:30m}")
+    private Duration ocrJobTimeout;
+
+    @Value("${ocr.job.poll-interval:1s}")
+    private Duration ocrJobPollInterval;
 
     public DocumentProcessingService(
             DocumentRepository documentRepository,
@@ -46,7 +53,7 @@ public class DocumentProcessingService {
     }
 
     @Async
-    public void processDocument(UUID documentId) {
+    public void processDocument(UUID documentId, String engine) {
 
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() ->
@@ -106,54 +113,55 @@ public class DocumentProcessingService {
             var ocrJob =
                     ocrService.submitJobFromStorageBytes(
                             contents,
-                            filenames
+                            filenames,
+                            engine
                     );
 
             UUID jobId =
                     UUID.fromString(ocrJob.getJobId()); // Otteniamo l'ID del job OCR come UUID
 
-            var ocrStatus =
-                    ocrService.getJobStatus(jobId);
 
-            long startTime =
-                    System.currentTimeMillis();
+            var ocrStatus = ocrService.getJobStatus(jobId);
 
-            long timeout =
-                    2 * 60 * 1000L;
+            long startTime = System.nanoTime();
+            long timeoutNanos = ocrJobTimeout.toNanos();
+            long pollIntervalMillis = ocrJobPollInterval.toMillis();
 
-            while (
-                    (
-                            ocrStatus.getStatus().equals("PENDING")
-                                    || ocrStatus.getStatus().equals("PROCESSING")
-                    )
-                            && (System.currentTimeMillis() - startTime) < timeout
-            ) {
-
-                Thread.sleep(1000);
-
-                ocrStatus =
-                        ocrService.getJobStatus(jobId);
+            if (timeoutNanos <= 0 || pollIntervalMillis <= 0) {
+                throw new IllegalStateException(
+                        "Il timeout OCR e l'intervallo di polling devono essere positivi."
+                );
             }
 
-            if (
-                    ocrStatus.getStatus().equals("PENDING")
-                            || ocrStatus.getStatus().equals("PROCESSING")
-            ) {
-                throw new RuntimeException("Timeout OCR");
+            while ("PENDING".equals(ocrStatus.getStatus())
+                    || "PROCESSING".equals(ocrStatus.getStatus())) {
+
+                if (System.nanoTime() - startTime >= timeoutNanos) {
+                    throw new RuntimeException(
+                            "Timeout OCR dopo " + ocrJobTimeout
+                    );
+                }
+
+                Thread.sleep(pollIntervalMillis);
+                ocrStatus = ocrService.getJobStatus(jobId);
             }
 
-            if (ocrStatus.getStatus().equals("FAILED")) {
-
-                var ocrResult =
-                        ocrService.getJobResult(jobId);
+            if ("FAILED".equals(ocrStatus.getStatus())) {
+                var ocrResult = ocrService.getJobResult(jobId);
 
                 throw new RuntimeException(
                         "OCR fallito: " + ocrResult.getError()
                 );
             }
 
-            var ocrResult =
-                    ocrService.getJobResult(jobId);
+            if (!"COMPLETED".equals(ocrStatus.getStatus())) {
+                throw new RuntimeException(
+                        "Stato OCR non riconosciuto: "
+                                + ocrStatus.getStatus()
+                );
+            }
+
+            var ocrResult = ocrService.getJobResult(jobId);
             List<OcrJobResultResponse.PageResult> pageResults = ocrResult.getPages();
 
             // 3. OCR completato

@@ -55,7 +55,8 @@ public class OcrService {
 
     public OcrJobResponse submitJobFromStorageBytes(
             List<byte[]> contents,
-            List<String> filenames
+            List<String> filenames,
+            String engine
     ) {
 
         if (contents == null || contents.isEmpty()) {
@@ -72,6 +73,7 @@ public class OcrService {
 
         MultipartBodyBuilder bodyBuilder =
                 new MultipartBodyBuilder(); // Creiamo un body multipart per la richiesta
+        bodyBuilder.part("engine", engine); // Aggiungiamo il parametro engine al body
 
         for (int i = 0; i < contents.size(); i++) {
 

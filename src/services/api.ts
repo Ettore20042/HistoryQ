@@ -437,3 +437,41 @@ export async function downloadTeamDocument(
   link.click()
   URL.revokeObjectURL(url)
 }
+
+export type OcrEngine =
+    | 'tesseract'
+    | 'churro'
+    | 'lighton-1b'
+    | 'lighton-4b'
+
+export interface ReprocessDocumentResponse {
+  documentId: string
+  displayName: string
+  status: string
+  engine: OcrEngine
+}
+
+export async function reprocessDocument(
+    documentId: string,
+    engine: OcrEngine
+): Promise<ReprocessDocumentResponse> {
+  const response = await authenticatedFetch(
+      `/api/documents/${documentId}/reprocess`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ engine }),
+      }
+  )
+
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(
+        message || `Errore durante la rielaborazione (${response.status})`
+    )
+  }
+
+  return await response.json() as ReprocessDocumentResponse
+}

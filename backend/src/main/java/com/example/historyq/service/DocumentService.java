@@ -45,7 +45,7 @@ public class DocumentService {
         this.pdfToImageService = pdfToImageService;
     }
 
-    public Document upload(MultipartFile[] files,String displayName,String description,String historicalDate,String author,String archive_source) throws Exception {
+    public Document upload(MultipartFile[] files,String displayName,String description,String historicalDate,String author,String archive_source,String engine) throws Exception {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
@@ -220,7 +220,7 @@ public class DocumentService {
 
 // 3. Avvio dell'elaborazione asincrona fuori dal try/catch
 // che gestisce la pulizia delle immagini.
-        documentProcessingService.processDocument(documentId);
+        documentProcessingService.processDocument(documentId,engine);
 
         return document;
 

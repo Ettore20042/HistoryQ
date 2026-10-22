@@ -14,7 +14,7 @@ import {
   getPublicDocumentPages,
   getPublicPageTranscription,
   getTeamDocument,
-  getTeamDocumentPages, getTeamDocumentPage, getTeamPageTranscription, type TeamDocumentResponse, downloadTeamDocument
+  getTeamDocumentPages, getTeamDocumentPage, getTeamPageTranscription, type TeamDocumentResponse, downloadTeamDocument,reprocessDocument, type OcrEngine,
 } from '@/services/api'
 import RagChat from '@/components/RagChat.vue'
 
@@ -61,6 +61,11 @@ const savingPageTranscription = ref(false)
 const pageTranscriptionLoading = ref(false)
 const pageTranscriptionError = ref('')
 const pageTranscriptionMessage = ref('')
+const selectedOcrEngine = ref<OcrEngine>('tesseract')
+const reprocessing = ref(false)
+const reprocessError = ref('')
+
+
 
 const statusTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 let componentUnmounted = false
@@ -173,6 +178,44 @@ async function pollDocumentStatus(): Promise<void> {
   }
 }
 
+async function reprocessCurrentDocument() {
+  if (!isOwner.value || !document.value || teamId.value) {
+    return
+  }
+
+  if (reprocessing.value) {
+    return
+  }
+
+  reprocessing.value = true
+  reprocessError.value = ''
+
+  try {
+    const result = await reprocessDocument(
+        documentId.value,
+        selectedOcrEngine.value
+    )
+
+    // Apri il nuovo documento senza modificare quello originale.
+    const newPath = route.path.replace(
+        documentId.value,
+        result.documentId
+    )
+
+    await router.push({
+      path: newPath,
+      query: {},
+    })
+  } catch (err) {
+    reprocessError.value =
+        err instanceof Error
+            ? err.message
+            : 'Errore durante la rielaborazione del documento.'
+  } finally {
+    reprocessing.value = false
+  }
+}
+
 async function loadPage(index: number) {
   if (index < 0 || index >= pageNames.value.length) return
 
@@ -235,7 +278,7 @@ function nextPage() {
 }
 
 function goBack() {
-  router.push(isOwner.value ? '/documents' : '/public/documents')
+  router.back()
 }
 
 function goToPage() {
@@ -445,6 +488,12 @@ onBeforeUnmount(() => {
 
     </section>
 
+
+
+
+
+
+
     <section
         v-if="!loading && !error && document"
         class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]"
@@ -536,6 +585,43 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="border-t border-slate-200 px-5 py-4">
+          <div
+              v-if="isOwner && !teamId"
+              class="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"
+          >
+            <label for="ocr-engine" class="text-sm text-slate-600">
+              Motore OCR
+            </label>
+
+            <select
+                id="ocr-engine"
+                v-model="selectedOcrEngine"
+                :disabled="reprocessing || document?.status === 'PROCESSING'"
+                class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+            >
+              <option value="tesseract">Tesseract</option>
+              <option value="churro">Churro 3B</option>
+              <option value="lighton-1b">LightOnOCR 1B</option>
+              <option value="lighton-4b">LightOnOCR 4B</option>
+            </select>
+
+            <button
+                type="button"
+                :disabled="reprocessing || document?.status === 'PROCESSING'"
+                class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                @click="reprocessCurrentDocument"
+            >
+              {{ reprocessing ? 'Avvio...' : 'Rielabora' }}
+            </button>
+
+            <p
+                v-if="reprocessError"
+                class="w-full text-xs text-red-600"
+                role="alert"
+            >
+              {{ reprocessError }}
+            </p>
+          </div>
           <div class="mt-2 border-t border-slate-200 pt-5">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h3 class="text-lg font-semibold text-slate-900">

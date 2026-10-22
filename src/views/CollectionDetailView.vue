@@ -128,7 +128,7 @@ onMounted(loadCollection)
     <button
         type="button"
         class="mb-6 text-sm font-medium text-blue-700 hover:underline"
-        @click="router.push('/collections')"
+        @click="router.back()"
     >
       ← Torna alle collezioni
     </button>
