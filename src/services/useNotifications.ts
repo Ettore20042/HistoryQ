@@ -165,3 +165,27 @@ export function useNotifications() {
         declineInvitation: (id: string) => handleInvitation(id, 'decline'),
     }
 }
+export async function deleteNotifications() {
+    try {
+        const response = await authenticatedFetch(
+            '/api/notifications/delete-all',
+            { method: 'POST' }
+        )
+
+        if (!response.ok) {
+            throw new Error(
+                `Errore nella cancellazione delle notifiche: HTTP ${response.status}`
+            )
+        }
+
+        notifications.value = []
+        stopPolling()
+
+        await fetchUnreadCount()
+    } catch (error) {
+        console.error(
+            'Errore nella cancellazione delle notifiche:',
+            error
+        )
+    }
+}

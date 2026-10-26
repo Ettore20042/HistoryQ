@@ -101,4 +101,12 @@ public class NotificationController {
         return ResponseEntity.ok(
                 notificationService.declineInvitation(id, user));
     }
+    @PostMapping("delete-all")
+    public ResponseEntity<?> deleteAll(
+            Authentication authentication
+    ) {
+        User user = getAuthenticatedUser(authentication);
+        notificationService.deleteAll(user);
+        return ResponseEntity.noContent().build();
+    }
 }

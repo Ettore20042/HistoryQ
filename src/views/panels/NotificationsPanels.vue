@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useNotifications } from '@/services/useNotifications'
+import { useNotifications, deleteNotifications } from '@/services/useNotifications'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -95,6 +95,18 @@ function openTeam(teamId?: string) {
     void router.push(`/teams/${teamId}`)
   }
 }
+async function deleteAllNotifications() {
+  errorMessage.value = ''
+
+  try {
+    notifications.value = []
+    await deleteNotifications()
+    errorMessage.value = 'Tutte le notifiche sono state eliminate.'
+  } catch (error) {
+    console.error('Errore durante l’eliminazione delle notifiche:', error)
+    errorMessage.value = 'Impossibile eliminare le notifiche.'
+  }
+}
 </script>
 
 <template>
@@ -135,6 +147,14 @@ function openTeam(teamId?: string) {
             @click="handleMarkAllAsRead"
         >
           Segna tutte come lette
+        </button>
+        <button
+            type="button"
+            class="ml-4 text-sm font-medium text-red-700 hover:underline"
+            :disabled="loadingNotifications || notifications.length === 0"
+            @click="deleteAllNotifications"
+        >
+          Elimina tutte
         </button>
       </div>
 

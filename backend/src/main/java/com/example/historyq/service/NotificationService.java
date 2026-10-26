@@ -191,4 +191,8 @@ public class NotificationService {
                     "Questo invito non è destinato al tuo account.");
         }
     }
+    @Transactional
+    public void deleteAll(User user) {
+        notificationRepository.deleteAllByUser(user);
+    }
 }
