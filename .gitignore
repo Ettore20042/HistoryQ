@@ -50,3 +50,9 @@ __screenshots__/
 /.env.*
 backend/src/main/resources/application-local.properties
 backend/src/main/resources/application-dev.properties
+
+# OCR service local runtime files
+/backend/ocr-service/.venv/
+/backend/ocr-service/.env
+/backend/ocr-service/__pycache__/
+/backend/ocr-service/uploads/

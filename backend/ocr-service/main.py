@@ -19,14 +19,17 @@ from psycopg.types.json import Jsonb
 # --------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR = Path(
+    os.environ.get("OCR_UPLOAD_DIR", str(BASE_DIR / "uploads"))
+).expanduser()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+TESSERACT_PATH = os.environ.get("TESSERACT_PATH")
+if TESSERACT_PATH:
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 
-OCR_LANGUAGE = "ita"
-TESSERACT_CONFIG = "--psm 3"
+OCR_LANGUAGE = os.environ.get("OCR_LANGUAGE", "ita")
+TESSERACT_CONFIG = os.environ.get("TESSERACT_CONFIG", "--psm 3")
 
 SUPPORTED_ENGINES = {
     "tesseract",
@@ -39,8 +42,8 @@ ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".tiff", ".webp"
 }
 
-POLL_INTERVAL = 2
-MAX_ATTEMPTS = 3
+POLL_INTERVAL = int(os.environ.get("OCR_POLL_INTERVAL", "2"))
+MAX_ATTEMPTS = int(os.environ.get("OCR_MAX_ATTEMPTS", "3"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ocr-service")
