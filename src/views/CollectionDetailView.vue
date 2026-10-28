@@ -2,7 +2,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDocumentPages, getDocumentPage } from '@/services/api'
+import {
+  getDocumentPages,
+  getDocumentPage,
+  getTeamDocumentPages,
+  getTeamDocumentPage,
+} from '@/services/api'
 import { onBeforeUnmount } from 'vue'
 import RagChat from '@/components/RagChat.vue'
 
@@ -99,7 +104,9 @@ async function loadCover(documentId: string) {
   if (coverUrls.value[documentId] || coverErrors.value[documentId]) return
 
   try {
-    const pages = await getDocumentPages(documentId)
+    const pages = teamId
+        ? await getTeamDocumentPages(teamId, documentId)
+        : await getDocumentPages(documentId)
     const firstPage = pages[0]
 
     if (!firstPage) {
@@ -107,10 +114,9 @@ async function loadCover(documentId: string) {
       return
     }
 
-    coverUrls.value[documentId] = await getDocumentPage(
-        documentId,
-        firstPage,
-    )
+    coverUrls.value[documentId] = teamId
+        ? await getTeamDocumentPage(teamId, documentId, firstPage)
+        : await getDocumentPage(documentId, firstPage)
   } catch {
     coverErrors.value[documentId] = true
   }

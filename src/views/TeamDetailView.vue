@@ -13,6 +13,8 @@ import {
   getTeamDocumentPreview,
   inviteTeamMember,
   removeTeamDocument,
+  getTeamDocumentPages,
+  getTeamDocumentPage,
   getTeamCollections, getTeamCollectionCandidates, addTeamCollections,
   removeTeamCollection,
 } from '@/services/api'
@@ -784,7 +786,7 @@ onMounted(() => {
               <li v-for="collection in sharedCollections" :key="collection.id"
                   class="flex items-center justify-between rounded-lg bg-slate-50 p-3">
                 <button type="button" class="text-left font-medium text-blue-700 hover:underline"
-                    @click="router.push(`/collections/${collection.id}`)">
+                        @click="router.push(`/collections/${collection.id}?teamId=${route.params.teamId}`)">
                   {{ collection.name }}
                 </button>
                 <button v-if="canManageDocuments" type="button" class="text-xs text-red-700"

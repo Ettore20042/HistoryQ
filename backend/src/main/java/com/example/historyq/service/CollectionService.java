@@ -198,7 +198,12 @@ public class CollectionService {
             User user) {
 
         Collection collection = getCollectionById(collectionId, user);
+        return getOrCreateCollectionChat(collectionId, collection);
+    }
 
+    private String getOrCreateCollectionChat(
+            UUID collectionId,
+            Collection collection) {
         List<CollectionDocument> associations =
                 collectionDocumentRepository.findAllByCollection_Id(collectionId);
 
@@ -245,8 +250,8 @@ public class CollectionService {
     }
 
     public String getOrCreateCollectionChat(UUID collectionId, User user, UUID teamId) {
-        getCollectionById(collectionId, user, teamId);
-        return getOrCreateCollectionChat(collectionId, user);
+        Collection collection = getCollectionById(collectionId, user, teamId);
+        return getOrCreateCollectionChat(collectionId, collection);
     }
 
 }
