@@ -10,13 +10,21 @@ import com.example.historyq.dto.OcrJobResultResponse;
 import java.util.UUID;
 import org.springframework.core.io.ByteArrayResource;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 public class OcrService {
     private final RestClient restClient;
+    private final String ocrServiceToken;
 
-    public OcrService(RestClient restClient) {
+    public OcrService(RestClient restClient,@Value("${ocr.service.token}") String ocrServiceToken) {
+        if (ocrServiceToken == null || ocrServiceToken.isBlank()) {
+            throw new IllegalStateException(
+                    "La variabile OCR_API_TOKEN non è configurata."
+            );
+        }
         this.restClient = restClient;
+        this.ocrServiceToken = ocrServiceToken;
     }
     public String testConnection() {
         return restClient
@@ -48,6 +56,7 @@ public class OcrService {
         return restClient
                 .post()
                 .uri("/ocr/batch")
+                .header("Authorization", "Bearer " + ocrServiceToken)
                 .body(bodyBuilder.build())
                 .retrieve()
                 .body(OcrJobResponse.class);
@@ -96,6 +105,7 @@ public class OcrService {
         return restClient
                 .post()
                 .uri("/ocr/batch")
+                .header("Authorization", "Bearer " + ocrServiceToken) // Aggiungiamo l'header di autorizzazione con il token
                 .body(bodyBuilder.build())
                 .retrieve()
                 .body(OcrJobResponse.class);
@@ -107,6 +117,7 @@ public class OcrService {
         return restClient
                 .get()
                 .uri("/ocr/batch/{jobId}", jobId)
+                .header("Authorization", "Bearer " + ocrServiceToken)
                 .retrieve()
                 .body(OcrJobStatusResponse.class);
     }
@@ -114,6 +125,7 @@ public class OcrService {
         return restClient
                 .get()
                 .uri("/ocr/batch/{jobId}/result", jobId)
+                .header("Authorization", "Bearer " + ocrServiceToken)
                 .retrieve()
                 .body(OcrJobResultResponse.class);
     }
