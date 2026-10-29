@@ -65,7 +65,7 @@
                     @RequestParam("historicalDate") String historicalDate,
                     @RequestParam("author") String author,
                     @RequestParam("archive_source") String archive_source,
-                    @RequestParam(value="engine",defaultValue="tesseract") String engine
+                    @RequestParam(value="engine",defaultValue="churro") String engine
             ) {
                 try {
 
@@ -427,10 +427,10 @@
                             }
                         });
                     }
+                     String duplicateName = original.getDisplayName().replaceFirst("\\((tesseract|churro|lighton-1b|lighton-4b)\\)$", "") + "(" + engine + ")";
 
                     // Riutilizza il normale upload: crea un nuovo documento
                     // e avvia la pipeline OCR/RAGFlow con il motore selezionato.
-                    String duplicateName = original.getDisplayName() + " (copia OCR)";
 
                     if (duplicateName.length() > 512) {
                         duplicateName = duplicateName.substring(0, 512);

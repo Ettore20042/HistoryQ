@@ -128,7 +128,7 @@ export interface PageTranscriptionResponse {
 
 export async function getPageTranscription(documentId: string, filename: string): Promise<PageTranscriptionResponse> {
   const response = await authenticatedFetch(`/api/documents/${documentId}/page-transcriptions/${encodeURIComponent(filename)}`)
-  if (!response.ok) throw new Error('Impossibile recuperare la trascrizione della pagina.')
+  if (!response.ok) throw new Error('Impossibile recuperare la trascrizione della pagina o rielaborazione in corso.')
   return await response.json() as PageTranscriptionResponse
 }
 

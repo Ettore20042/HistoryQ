@@ -61,7 +61,7 @@ const savingPageTranscription = ref(false)
 const pageTranscriptionLoading = ref(false)
 const pageTranscriptionError = ref('')
 const pageTranscriptionMessage = ref('')
-const selectedOcrEngine = ref<OcrEngine>('tesseract')
+const selectedOcrEngine = ref<OcrEngine>('churro')
 const reprocessing = ref(false)
 const reprocessError = ref('')
 
@@ -599,8 +599,9 @@ onBeforeUnmount(() => {
                 :disabled="reprocessing || document?.status === 'PROCESSING'"
                 class="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
             >
-              <option value="tesseract">Tesseract</option>
+
               <option value="churro">Churro 3B</option>
+              <option value="tesseract">Tesseract</option>
               <option value="lighton-1b">LightOnOCR 1B</option>
               <option value="lighton-4b">LightOnOCR 4B</option>
             </select>
