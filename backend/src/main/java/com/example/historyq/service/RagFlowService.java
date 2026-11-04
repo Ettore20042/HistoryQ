@@ -31,8 +31,8 @@ public class RagFlowService {
     private final ObjectMapper objectMapper;
 
     public RagFlowService(
-            @Value("${ragflow.base.url:http://127.0.0.1:9380}") String baseUrl,
-            @Value("${ragflow.api.key:}") String apiKey,
+            @Value("${ragflow.base.url}") String baseUrl,
+            @Value("${ragflow.api.key}") String apiKey,
             ObjectMapper objectMapper
     ) {
         this.baseUrl = baseUrl;

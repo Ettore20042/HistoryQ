@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+node_modules
+dist
+dist-ssr
+coverage
+backend/target
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-dev.properties
+backend/ocr-service/.venv
+backend/ocr-service/__pycache__
+.env
+.env.*
+*.log

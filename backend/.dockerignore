@@ -1,0 +1,11 @@
+.git
+.idea
+target
+.mvn
+.env
+.env.*
+src/main/resources/application-local.properties
+src/main/resources/application-dev.properties
+ocr-service/.venv
+ocr-service/__pycache__
+*.log

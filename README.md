@@ -1,4 +1,4 @@
-
+o
 # HistoryQ
 
 > Piattaforma web per la conservazione, la trascrizione tramite OCR e la consultazione di documenti storici mediante intelligenza artificiale conversazionale (RAG).
