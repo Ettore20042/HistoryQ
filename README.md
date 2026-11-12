@@ -25,7 +25,7 @@ Spring Boot 3.4 (Java 21)
 |---|---|
 | **Frontend** | Vue 3 (Composition API) · TypeScript · Vite · Tailwind CSS · Pinia · Vue Router |
 | **Backend Core** | Spring Boot 3.4.1 · Java 21 · Spring Security · Spring Data JPA · Jackson |
-| **Object Storage** | MinIO (Bucket `historygenie-documents`) via SDK Java 8.5 |
+| **Object Storage** | MinIO (Bucket `historyq-documents`) via SDK Java 8.5 |
 | **Database Relazionale** | PostgreSQL (con estensione `pgcrypto` per UUID e migrazioni **Flyway V1–V17**) |
 | **Modulo OCR** | Churro OCR (Microservizio FastAPI / Python per elaborazione asincrona batch) |
 | **RAG Engine** | RAGFlow Orchestrator (Parsing, Chunking, Embeddings e LLM Integration) |
@@ -73,7 +73,7 @@ Configura le credenziali o le variabili d'ambiente in backend/src/main/resources
 server.port=8081
 
 # Database PostgreSQL
-spring.datasource.url=jdbc:postgresql://localhost:5432/historygenie
+spring.datasource.url=jdbc:postgresql://localhost:5432/historyq
 spring.datasource.username=${DB_USER:postgres}
 spring.datasource.password=${DB_PASSWORD:postgres}
 
@@ -85,7 +85,7 @@ spring.flyway.baseline-on-migrate=true
 minio.url=${MINIO_URL:http://localhost:9000}
 minio.access.key=${MINIO_ACCESS_KEY:minioadmin}
 minio.secret.key=${MINIO_SECRET_KEY:minioadmin}
-minio.bucket.name=historygenie-documents
+minio.bucket.name=historyq-documents
 
 # Churro OCR Service
 ocr.service.url=${OCR_SERVICE_URL:http://localhost:8000}
