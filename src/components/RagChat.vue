@@ -49,8 +49,8 @@ function createWelcomeMessage(): Message {
     id: 'welcome',
     role: 'assistant',
     text: props.collectionId
-      ? 'Ciao! Sono historyGenie. Poni una domanda sui documenti di questa collezione.'
-      : 'Ciao! Sono historyGenie. Poni una domanda sui documenti caricati nel dataset RAGFlow.',
+      ? 'Ciao! Sono historyQ. Poni una domanda sui documenti di questa collezione.'
+      : 'Ciao! Sono historyQ. Poni una domanda sui documenti caricati nel dataset RAGFlow.',
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   }
 }
@@ -265,7 +265,7 @@ function openCitation(citation: Citation) {
         </div>
         <div>
           <h3 class="font-semibold text-slate-800 text-sm leading-tight">
-            {{ props.collectionId ? 'Chat della collezione' : 'historyGenie Chat' }}
+            {{ props.collectionId ? 'Chat della collezione' : 'historyQ Chat' }}
           </h3>
           <div class="flex items-center gap-1 text-[11px] text-emerald-600">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

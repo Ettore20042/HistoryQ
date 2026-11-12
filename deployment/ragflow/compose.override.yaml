@@ -1,0 +1,26 @@
+services:
+  ragflow-cpu:
+    ports: !override
+       - "127.0.0.1:18081:80"
+    networks: [ragflow, historyq-ragflow]
+
+  ragflow-gpu:
+    ports: !reset []
+    networks: [ragflow, historyq-ragflow]
+
+  es01:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  mysql:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+networks:
+  historyq-ragflow:
+    external: true
+    name: historyq-ragflow

@@ -651,7 +651,7 @@ public class RagFlowService {
     ) throws InterruptedException {
 
         long startTime = System.currentTimeMillis();
-        long timeout = 2 * 60 * 1000L;
+        long timeout = 10 * 60 * 1000L;
 
         while (System.currentTimeMillis() - startTime < timeout) {
 
