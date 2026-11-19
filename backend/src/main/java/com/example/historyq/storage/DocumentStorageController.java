@@ -100,6 +100,7 @@
             ) {
                 try {
                     String question = request.get("question");
+                    String sessionId = request.get("session_id");
 
                     if (question == null || question.isBlank()) {
                         return ResponseEntity.badRequest()
@@ -119,6 +120,7 @@
                     Map<String, Object> result =
                             ragFlowService.askQuestion(
                                     chatId,
+                                    sessionId,
                                     question,
                                     documentStorageService.listObjects(document.getStoragePath())
                                             .stream()
@@ -138,7 +140,27 @@
                                             + e.getMessage()
                             );
                 }
+
             }
+
+                @PostMapping("/{documentId}/chat/session")
+                public ResponseEntity<?> createChatSession(@PathVariable UUID documentId) {
+                    try {
+                        Document document = documentService.getOwnedDocument(documentId);
+                        String chatId = document.getRagflowChatId();
+                        if (chatId == null || chatId.isBlank()) {
+                            return ResponseEntity.status(409)
+                                    .body("Il documento non ha una Chat RAGFlow associata.");
+                        }
+                        return ResponseEntity.ok(Map.of(
+                                "session_id", ragFlowService.createSession(chatId)));
+                    } catch (IllegalArgumentException e) {
+                        return ResponseEntity.notFound().build();
+                    } catch (Exception e) {
+                        return ResponseEntity.internalServerError()
+                                .body("Errore durante la creazione della sessione RAG.");
+                    }
+                }
             @GetMapping("/{documentId}/status")
             public ResponseEntity<?> getStatus(
                     @PathVariable UUID documentId

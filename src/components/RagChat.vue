@@ -2,10 +2,14 @@
 import { ref, nextTick, onMounted } from 'vue'
 import {
   askCollectionQuestion,
+  createCollectionChatSession,
   askDocumentQuestion,
+  createDocumentChatSession,
   askPublicDocumentQuestion,
   askTeamDocumentQuestion,
+  createTeamDocumentChatSession,
 } from '@/services/api'
+import { getCurrentUserId } from '@/services/auth'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -27,9 +31,12 @@ interface Message {
 
 type Citation = string | Record<string, unknown>
 
-const chatStorageKey = props.collectionId
-    ? `historyq_chat_collection_${props.collectionId}`
-    : `historyq_chat_${documentId}`
+const userId = getCurrentUserId()
+const conversationId = props.collectionId ?? `${props.teamId ?? 'document'}_${documentId}`
+const chatStorageKey = `historyq_chat_${userId}_${conversationId}`
+const sessionStorageKey = `historyq_session_${userId}_${conversationId}`
+const sessionId = ref<string | null>(null)
+const sessionInitializers = new Map<string, Promise<string>>()
 
 interface AnswerTable {
   headers: string[]
@@ -82,8 +89,46 @@ function restoreMessages() {
 
 onMounted(() => {
   restoreMessages()
+  void initializeSession().catch((err: unknown) => {
+    errorAlert.value = err instanceof Error
+      ? err.message
+      : 'Impossibile inizializzare la sessione RAGFlow.'
+  })
   void scrollToBottom()
 })
+
+async function initializeSession(): Promise<void> {
+  if (props.publicDocument) return
+  const key = sessionStorageKey
+  let initializer = sessionInitializers.get(key)
+  if (!initializer) {
+    const createOrReuse = async () => {
+      const stored = localStorage.getItem(sessionStorageKey)
+      if (stored) {
+        sessionId.value = stored
+        return stored
+      }
+      const created = props.collectionId
+        ? await createCollectionChatSession(props.collectionId, props.teamId)
+        : props.teamId
+          ? await createTeamDocumentChatSession(props.teamId, documentId)
+          : await createDocumentChatSession(documentId)
+      if (!created.trim()) throw new Error('RAGFlow non ha restituito un session_id valido.')
+      localStorage.setItem(sessionStorageKey, created)
+      sessionId.value = created
+      return created
+    }
+    initializer = 'locks' in navigator
+      ? navigator.locks.request(`historyq:${key}`, createOrReuse)
+      : createOrReuse()
+    sessionInitializers.set(key, initializer)
+  }
+  try {
+    await initializer
+  } finally {
+    sessionInitializers.delete(key)
+  }
+}
 
 async function scrollToBottom() {
   await nextTick() // Assicurati che il DOM sia aggiornato prima di scorrere
@@ -112,13 +157,16 @@ async function handleSendMessage() {
   await scrollToBottom()
 
   try {
+    if (!props.publicDocument && !sessionId.value) {
+      await initializeSession()
+    }
     const response = props.collectionId
-        ? await askCollectionQuestion(props.collectionId, query, props.teamId)
+        ? await askCollectionQuestion(props.collectionId, query, props.teamId, sessionId.value ?? undefined)
         : props.teamId
-            ? await askTeamDocumentQuestion(props.teamId, documentId, query)
+        ? await askTeamDocumentQuestion(props.teamId, documentId, query, sessionId.value ?? '')
         : props.publicDocument
             ? await askPublicDocumentQuestion(documentId, query)
-            : await askDocumentQuestion(documentId, query)
+        : await askDocumentQuestion(documentId, query, sessionId.value ?? '')
     const assistantMessage: Message = {
       id: 'res-' + Date.now(),
       role: 'assistant',

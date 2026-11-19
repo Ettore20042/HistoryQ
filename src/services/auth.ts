@@ -46,6 +46,15 @@ export function isAuthenticated(): boolean {
   return Boolean(authState.token)
 }
 
+export function getCurrentUserId(): string {
+  const token = authState.token ?? localStorage.getItem(TOKEN_KEY)
+  if (token) {
+    const payload = decodePayload(token)
+    if (payload.sub) return payload.sub
+  }
+  return authState.username ?? 'anonymous'
+}
+
 export async function login(username: string, password: string): Promise<AuthResponse> {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
