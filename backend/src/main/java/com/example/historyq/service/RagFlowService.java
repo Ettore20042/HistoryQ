@@ -608,6 +608,58 @@ public class RagFlowService {
                 "dataset_ids",
                 List.of(datasetId)
         );
+        //Modello e parametri di generazione
+        Map<String, Object> llmSetting = new LinkedHashMap<>();
+        llmSetting.put("temperature",0.1);
+        llmSetting.put("top_p",0.3);
+        llmSetting.put("presence_penalty",0.0);
+        llmSetting.put("frequency_penalty",0.3);
+        llmSetting.put("max_tokens",4096);
+        payload.put("llm_setting",llmSetting);
+
+        //Parametri di retieval e comportamento
+        Map<String,Object> promptConfig = new LinkedHashMap<>();
+
+        promptConfig.put("system", """
+                Sei HistoryQ, un assistente specializzato
+                nella consultazione di documenti storici.
+
+                        Rispondi utilizzando principalmente le informazioni
+                presenti nei documenti recuperati.
+
+                        Non inventare informazioni, date, nomi o eventi.
+                        Se le fonti non contengono informazioni sufficienti,
+                dichiaralo esplicitamente.
+
+                        Distingui i fatti documentati dalle deduzioni.
+                        Mantieni la fedeltà alle fonti e segnala eventuali
+                contraddizioni tra documenti.
+
+                        Rispondi nella lingua dell'utente.""");
+        promptConfig.put("prologue",
+                "Benvenuto su HistoryQ. Cosa desideri cercare nei documenti?");
+
+        promptConfig.put("quote", true);
+
+        promptConfig.put("parameters", List.of(
+                Map.of("key", "knowledge", "optional", false)
+        ));
+
+        payload.put("prompt_config", promptConfig);
+
+        // Parametri di ricerca
+        payload.put("similarity_threshold", 0.25);
+        payload.put("keywords_similarity_weight", 0.50);
+        payload.put("top_n", 8);
+
+
+
+
+
+
+
+
+
         String responseBody = restClient.post()
                 .uri("/api/v1/chats")
                 .contentType(MediaType.APPLICATION_JSON)
