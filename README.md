@@ -68,7 +68,7 @@ docker compose up -d
 docker compose up -d postgres minio churro-ocr
 
 2. Backend (Spring Boot 3.4)
-Configura le credenziali o le variabili d'ambiente in backend/src/main/resources/application.properties:
+Configura le credenziali nel file `.env` nella root del repository (non committarlo). Spring Boot lo carica automaticamente sia avviando il backend dalla root sia dalla cartella `backend`; `.env.example` contiene solo valori dimostrativi.
 # Server
 server.port=8081
 
@@ -152,4 +152,3 @@ HistoryQ/
 
 Licenza
 Questo progetto è rilasciato sotto licenza MIT. Per ulteriori dettagli, consultare il file LICENSE presente nella root del repository.
-
