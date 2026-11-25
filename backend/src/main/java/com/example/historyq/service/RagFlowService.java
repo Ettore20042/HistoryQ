@@ -717,6 +717,7 @@ public class RagFlowService {
 
         //Parametri di retieval e comportamento
         Map<String,Object> promptConfig = new LinkedHashMap<>();
+
         promptConfig.put("cross_languages", List.of(
                 "English",
                 "German",
@@ -752,13 +753,13 @@ public class RagFlowService {
                         disponibile anche quando la richiesta è generica.
                         Rispondi nella lingua dell'utente.""");
         promptConfig.put("prologue",
-                "Benvenuto su HistoryQ. Cosa desideri cercare nei documenti?");
+                        "Benvenuto su HistoryQ. Cosa desideri cercare nei documenti?");
 
         promptConfig.put("quote", true);
         promptConfig.put(
-                "empty_response",
-                "Non ho trovato contenuti sufficientemente rilevanti "
-                        + "nei documenti per rispondere alla richiesta.");
+                        "empty_response",
+                        "Non ho trovato contenuti sufficientemente rilevanti "
+                                + "nei documenti per rispondere alla richiesta.");
 
         promptConfig.put("parameters", List.of(
                 Map.of("key", "knowledge", "optional", false)
@@ -770,6 +771,9 @@ public class RagFlowService {
         payload.put("similarity_threshold", 0.10);
         payload.put("keywords_similarity_weight", 0.25);
         payload.put("top_n", 12);
+
+
+
 
 
 

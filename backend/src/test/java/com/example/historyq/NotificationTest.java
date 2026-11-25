@@ -3,41 +3,53 @@ package com.example.historyq;
 import com.example.historyq.entity.Document;
 import com.example.historyq.entity.Notification;
 import com.example.historyq.entity.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NotificationTest {
 
     @Test
-    void testSerializationWithUserAndDocument() throws Exception {
-        User user = new User();
-        user.setUsername("testuser");
-        user.setPasswordHash("supersecret_hash");
-
-        Document doc = new Document();
-        doc.setDisplayName("Test Doc");
-
+    void testNotificationFieldsAndDefaultValues() {
         Notification notification = new Notification();
+        User user = new User();
+        Document document = new Document();
+
         notification.setUser(user);
-        notification.setDocument(doc);
+        notification.setDocument(document);
         notification.setTitle("Doc ready");
         notification.setMessage("Your doc is ready");
         notification.setType("DOCUMENT_READY");
+        notification.setRead(true);
 
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        String json = mapper.writeValueAsString(notification);
-        System.out.println("WITH RELATIONS: " + json);
+        assertEquals(user, notification.getUser());
+        assertEquals(document, notification.getDocument());
+        assertEquals("Doc ready", notification.getTitle());
+        assertEquals("Your doc is ready", notification.getMessage());
+        assertEquals("DOCUMENT_READY", notification.getType());
+        assertTrue(notification.isRead());
+        assertFalse(new Notification().isRead());
+        assertNotNull(notification.getCreatedAt());
+    }
 
-        // Check if password hash is leaked or document object is serialized
-        if (json.contains("passwordHash")) {
-            System.out.println("LEAK DETECTED: passwordHash is serialized in Notification JSON!");
-        }
-        if (json.contains("\"document\":{")) {
-            System.out.println("DOCUMENT OBJECT SERIALIZED: document is serialized in Notification JSON!");
-        }
+    @Test
+    void testNotificationCanBeMarkedAsReadAndAssignedAnInvitation() {
+        User user = new User();
+        Notification notification = new Notification();
+        notification.setUser(user);
+        UUID invitationId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.now().minusMinutes(5);
+
+        notification.setTeamInvitationId(invitationId);
+        notification.setCreatedAt(createdAt);
+        notification.setRead(true);
+
+        assertEquals(user, notification.getUser());
+        assertEquals(invitationId, notification.getTeamInvitationId());
+        assertEquals(createdAt, notification.getCreatedAt());
+        assertTrue(notification.isRead());
     }
 }

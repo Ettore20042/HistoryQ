@@ -17,6 +17,7 @@ import com.example.historyq.repository.DocumentPageRepository;
 import com.example.historyq.entity.DocumentPage;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.Duration;
+import java.time.Instant;
 
 
 // Orchestrator of the document processing workflow, including OCR and RAGFlow integration.
@@ -54,6 +55,7 @@ public class DocumentProcessingService {
 
     @Async
     public void processDocument(UUID documentId, String engine) {
+        Instant startTime1 = Instant.now();
 
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() ->
@@ -105,7 +107,10 @@ public class DocumentProcessingService {
                         e
                 );
             }
+            Instant endTime = Instant.now();
+            System.out.println("Tempo impiegato per il recupero delle pagine da Silo: " + Duration.between(startTime1, endTime).toMillis() + " ms");
             // 2. Avvio OCR
+            Instant ocrStartTime = Instant.now();
             document.setStatus("OCR_PROCESSING");
             document.setProgress(20);
             documentRepository.save(document);
@@ -163,11 +168,14 @@ public class DocumentProcessingService {
 
             var ocrResult = ocrService.getJobResult(jobId);
             List<OcrJobResultResponse.PageResult> pageResults = ocrResult.getPages();
+            Instant ocrEndTime = Instant.now();
+            System.out.println("Tempo impiegato per l'OCR: " + Duration.between(ocrStartTime, ocrEndTime).toMillis() + " ms");
 
             // 3. OCR completato
             document.setStatus("OCR_COMPLETED");
             document.setProgress(50);
             documentRepository.save(document);
+            Instant ragflowStartTime = Instant.now();
 
 
             //Recupera le pagine restituite dall'OCR e aggiorna il database con il testo OCR per ogni pagina
@@ -277,9 +285,12 @@ public class DocumentProcessingService {
                         ragflowDocumentId
                 );
             }
+            Instant ragflowEndTime = Instant.now();
+            System.out.println("Tempo impiegato per RAGFlow(upload e parsing): " + Duration.between(ragflowStartTime, ragflowEndTime).toMillis() + " ms");
 
             document.setProgress(90);
             documentRepository.save(document);
+            Instant ragflowChatStartTime = Instant.now();
 
             // 6. Creazione Chat
             String ragflowChatName =
@@ -293,6 +304,8 @@ public class DocumentProcessingService {
             document.setRagflowChatId(
                     ragflowChatId
             );
+            Instant ragflowChatEndTime = Instant.now();
+            System.out.println("Tempo impiegato per la creazione della chat RAGFlow: " + Duration.between(ragflowChatStartTime, ragflowChatEndTime).toMillis() + " ms");
 
             // 7. Documento pronto
             document.setStatus("READY");
