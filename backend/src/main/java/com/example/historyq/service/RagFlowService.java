@@ -718,6 +718,20 @@ public class RagFlowService {
         //Parametri di retieval e comportamento
         Map<String,Object> promptConfig = new LinkedHashMap<>();
 
+        promptConfig.put("cross_languages", List.of(
+                "English",
+                "German",
+                "Vietnamese",
+                "Chinese",
+                "Japanese",
+                "Arabic",
+                "Spanish",
+                "Korean",
+                "Turkish",
+                "French",
+                "Dutch"
+        ));
+
         promptConfig.put("system", """
                 Sei HistoryQ, un assistente specializzato
                 nella consultazione di documenti storici.
@@ -757,6 +771,9 @@ public class RagFlowService {
         payload.put("similarity_threshold", 0.10);
         payload.put("keywords_similarity_weight", 0.25);
         payload.put("top_n", 12);
+
+
+
 
 
 
