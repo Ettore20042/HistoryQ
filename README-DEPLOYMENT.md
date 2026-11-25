@@ -1,8 +1,8 @@
 # HistoryQ — Deployment Guide
 
-Guida operativa per installare e avviare HistoryQ su Ubuntu Server mediante Docker Compose.
+Guida operativa per installare e avviare HistoryQ su un server Ubuntu mediante Docker Compose.
 
-Questa guida descrive l'installazione di HistoryQ e RAGFlow su un server Ubuntu. Ogni installazione deve utilizzare le proprie credenziali e configurazioni: i file contenenti informazioni sensibili non sono inclusi nel repository.
+Questa guida descrive l'installazione e la configurazione di HistoryQ e RAGFlow su un server Ubuntu. I due progetti vengono eseguiti mediante Docker Compose e comunicano attraverso una rete Docker condivisa.
 
 ## 1. Architettura
 
@@ -16,23 +16,19 @@ Il deployment è composto dai seguenti componenti:
 | Object Storage | Silo | Docker |
 | Reverse Proxy | Nginx | Docker |
 | RAG Engine | RAGFlow v0.27.1 | Docker Compose separato |
-| LLM Runtime | Ollama | Ubuntu Server |
-| Chat Model | Qwen3 32B | Ollama |
-| Embedding Model | Modello dedicato | Provider configurato in RAGFlow |
+| Chat Model | gpt-oss-120B | API Groq |
+| Embedding Model | Jina Embeddings v4 | API Jina |
 | OCR | FastAPI / Tesseract | Servizio universitario esterno |
 
 HistoryQ e RAGFlow utilizzano due progetti Docker Compose indipendenti, collegati attraverso la rete Docker esterna `historyq-ragflow`.
-
-Ollama viene eseguito direttamente sul server Ubuntu, al di fuori di Docker.
 
 ### Porte utilizzate
 
 | Servizio | Porta | Accesso |
 |---|---:|---|
-| HistoryQ | 18080 | Porta pubblicata sulla VM |
-| RAGFlow Web UI | 18081 | Solo localhost, accesso tramite SSH |
+| HistoryQ | 18080 | Porta pubblicata sul server |
+| RAGFlow Web UI | 18081 | Accesso tramite SSH |
 | RAGFlow API | 9380 | Rete Docker interna |
-| Ollama | 11434 | Server Ubuntu |
 | PostgreSQL | 5432 | Rete Docker interna |
 | Silo | 9000 / 9001 | Rete Docker interna |
 | Backend | 8081 | Rete Docker interna |
@@ -44,8 +40,12 @@ Ollama viene eseguito direttamente sul server Ubuntu, al di fuori di Docker.
 - Un server Ubuntu con accesso SSH.
 - Docker Engine e Docker Compose.
 - Git e curl.
-- Risorse hardware adeguate ai modelli LLM scelti.
-- Accesso al servizio OCR universitario, se necessario per l'elaborazione dei documenti.
+- Accesso a Internet per scaricare le immagini Docker e raggiungere le API esterne.
+- Una API Key Groq.
+- Una API Key Jina.
+- Accesso al servizio OCR universitario.
+
+Non sono richieste GPU, installazioni di runtime per modelli locali o risorse hardware dedicate all'esecuzione degli LLM.
 
 Installare gli strumenti di base:
 
@@ -119,8 +119,6 @@ Il repository contiene il file `.env.example`, che documenta le variabili necess
 
 Il file `.env` effettivo non viene distribuito nel repository per evitare la pubblicazione di credenziali e informazioni sensibili.
 
-La sua creazione è descritta nella sezione 3.2.
-
 ### 3.2. Configurazione delle variabili di ambiente di HistoryQ
 
 Accedere alla directory del progetto:
@@ -151,17 +149,23 @@ In particolare, verificare:
 - URL del servizio OCR.
 - URL dell'istanza RAGFlow.
 - API Key dell'istanza RAGFlow.
-- Nome del modello Chat, se configurabile tramite variabile di ambiente.
 
-Non lasciare valori segnaposto nelle variabili obbligatorie.
+Per l'integrazione con RAGFlow, verificare la presenza e la corretta configurazione delle seguenti variabili:
+
+```dotenv
+RAGFLOW_BASE_URL=http://ragflow-cpu:9380
+RAGFLOW_API_KEY=INSERIRE_LA_PROPRIA_API_KEY
+```
+
+La prima variabile identifica l'indirizzo interno dell'istanza RAGFlow, mentre la seconda permette al backend di autenticare le richieste.
+
+Le API Key di Groq e Jina non devono essere inserite nel `.env` di HistoryQ: vengono configurate direttamente nell'interfaccia di RAGFlow.
 
 Salvare il file e limitarne i permessi:
 
 ```bash
 chmod 600 .env
 ```
-
-**Importante:** non pubblicare mai il file `.env` su GitHub e non condividerlo con altri utenti. Ogni installazione deve utilizzare credenziali proprie.
 
 ## 4. Installazione di RAGFlow
 
@@ -191,7 +195,7 @@ Verificare la presenza del file di configurazione `.env`:
 ls -la
 ```
 
-Se la versione scaricata fornisce un file modello anziché `.env`, seguire le istruzioni ufficiali di RAGFlow per creare e configurare il file.
+RAGFlow utilizza un proprio file `.env`, separato da quello di HistoryQ. Le impostazioni di questo file devono essere mantenute indipendenti.
 
 Documentazione ufficiale:
 
@@ -253,152 +257,112 @@ Controllare eventuali errori:
 docker compose -p ragflow logs --tail=100
 ```
 
-## 5. Installazione e configurazione di Ollama
+Attendere che i servizi necessari siano correttamente avviati prima di procedere con la configurazione dei modelli.
 
-Ollama viene eseguito direttamente su Ubuntu, utilizzando le risorse hardware del server.
+## 5. Configurazione dei provider AI in RAGFlow
 
-Installarlo:
+RAGFlow utilizza provider esterni per eseguire le operazioni di generazione del testo e di indicizzazione semantica.
 
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
+In particolare, vengono configurati due provider distinti:
 
-### 5.1. Scaricare il modello Chat
+- Groq per il modello Chat.
+- Jina AI per il modello Embedding.
 
-Il modello utilizzato come configurazione predefinita è Qwen3 32B:
+Le API Key devono essere ottenute dai rispettivi servizi e configurate nell'interfaccia di RAGFlow.
 
-```bash
-ollama pull qwen3:32b
-```
-
-Il modello occupa circa 20 GB di spazio su disco e richiede risorse hardware considerevoli. Per un utilizzo più agevole sono indicativamente consigliati almeno 32 GB di RAM di sistema, oppure una GPU con memoria video adeguata.
-
-Se le risorse hardware sono insufficienti, è possibile utilizzare una delle seguenti alternative:
-
-**Qwen3 8B** – circa 5,2 GB di download; consigliati 16 GB di RAM di sistema.
-
-```bash
-ollama pull qwen3:8b
-```
-
-**Qwen3 4B** – circa 2,5 GB di download; adatto a sistemi con risorse più limitate.
-
-```bash
-ollama pull qwen3:4b
-```
-
-Se viene scelto un modello alternativo, ricordarsi di configurare lo stesso nome anche in RAGFlow e nell'eventuale variabile del backend HistoryQ che identifica il modello Chat.
-
-Verificare i modelli installati:
-
-```bash
-ollama list
-```
-
-### 5.2. Configurazione dell'accesso da Docker
-
-Per consentire a RAGFlow di comunicare con Ollama, il servizio deve essere raggiungibile attraverso l'interfaccia di rete del server.
-
-Modificare la configurazione:
-
-```bash
-sudo systemctl edit ollama
-```
-
-Inserire:
-
-```ini
-[Service]
-Environment="OLLAMA_HOST=0.0.0.0:11434"
-```
-
-Applicare le modifiche:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart ollama
-```
-
-Verificare il funzionamento:
-
-```bash
-curl http://localhost:11434/api/tags
-```
-
-**Nota di sicurezza:** Ollama non richiede autenticazione nella configurazione standard. Non esporre la porta 11434 indiscriminatamente su Internet. Limitare l'accesso tramite firewall alle sole reti o macchine che devono utilizzare il servizio.
-
-## 6. Configurazione dei modelli in RAGFlow
+### 5.1. Primo accesso a RAGFlow
 
 Accedere all'interfaccia RAGFlow tramite il tunnel SSH descritto nella sezione 9.
 
-### 6.1. Primo accesso e creazione dell'account
-
-Al primo accesso, se non esiste ancora un account, procedere con la registrazione:
+Al primo accesso, se non esiste ancora un account:
 
 1. Selezionare **Sign Up** nella schermata iniziale.
 2. Inserire i dati richiesti per creare un account.
 3. Completare la registrazione, se abilitata.
 4. Effettuare il login con le credenziali appena create.
 
-Non è necessario utilizzare un account RAGFlow preesistente: la registrazione crea un account sulla nuova installazione del server.
+La registrazione crea un account sulla nuova installazione del server.
 
-### 6.2. Configurazione del provider Ollama
+### 5.2. Configurazione del provider Groq
 
-Aprire:
+Per utilizzare il modello Chat è necessario disporre di una API Key Groq.
+
+La chiave può essere generata dalla piattaforma:
+
+https://console.groq.com/keys
+
+Dopo aver ottenuto la chiave, accedere a RAGFlow e aprire:
+
+**User Settings(in alto a destra) → Model Providers**
+
+Selezionare **Groq** tra i provider disponibili.
+
+Creare una nuova istanza e configurare le informazioni richieste:
+
+| Parametro | Valore |
+|---|---|
+| Provider | Groq |
+| Instance name | Groq |
+| API Key | API Key personale Groq |
+| Model | `openai/gpt-oss-120b` |
+| Model type | Chat |
+
+Se il modello non compare nell'elenco, aggiungerlo come modello personalizzato utilizzando l'identificativo esatto esposto dal provider.
+
+Verificare il modello attraverso la funzionalità di verifica di RAGFlow e salvare la configurazione.
+
+### 5.3. Configurazione del provider Jina
+
+Il modello di embedding viene utilizzato per trasformare il testo dei documenti e delle domande in rappresentazioni vettoriali.
+
+Queste rappresentazioni permettono di confrontare il significato delle informazioni e recuperare i contenuti semanticamente più pertinenti.
+
+Per questo deployment viene utilizzato Jina Embeddings v4.
+
+Ottenere una API Key dalla piattaforma:
+
+https://jina.ai/
+
+Accedere nuovamente a:
 
 **User Settings → Model Providers**
 
-Configurare il provider Ollama utilizzando l'indirizzo del server raggiungibile dall'interno dei container Docker:
+Selezionare **Jina** tra i provider disponibili.
+
+Creare una nuova istanza e configurare:
 
 | Parametro | Valore |
 |---|---|
-| Provider | Ollama |
-| Instance name | Ollama Server |
-| Base URL | `http://IP_SERVER:11434` |
-| API Key | Vuota, se non richiesta |
+| Provider | Jina |
+| Instance name | Jina |
+| API Key | API Key personale Jina |
+| Model | `jina-embeddings-v4` |
+| Model type | Embedding |
 
-Sostituire `IP_SERVER` con l'indirizzo IP del server Ubuntu raggiungibile dai container.
+Se il modello non compare nell'elenco, aggiungerlo come modello personalizzato, utilizzando l'identificativo esatto del modello supportato dal provider.
 
-Non utilizzare `localhost`, perché dall'interno del container indicherebbe il container stesso e non il sistema Ubuntu sul quale è installato Ollama.
+Verificare il funzionamento e salvare la configurazione.
 
-### 6.3. Configurazione del modello Chat
+### 5.4. Impostazione dei modelli predefiniti
 
-Aggiungere il modello Chat scaricato in precedenza.
+Dopo aver configurato entrambi i provider, accedere alla sezione:
 
-| Parametro | Valore |
+ **Set Default Models**, in base alla versione dell'interfaccia.
+
+Impostare i modelli predefiniti:
+
+| Impostazione | Modello |
 |---|---|
-| Model name | `qwen3:32b` |
-| Model type | Chat |
+| Default Chat Model / LLM | Groq – `openai/gpt-oss-120b` |
+| Default Embedding Model | Jina – `jina-embeddings-v4` |
 
-Se è stato scelto un modello alternativo, inserire il relativo nome, ad esempio `qwen3:8b` oppure `qwen3:4b`.
+Salvare le impostazioni.
 
-Verificare il modello e salvare la configurazione.
+A questo punto RAGFlow dispone dei provider necessari per generare risposte e indicizzare semanticamente i documenti.
 
-### 6.4. Configurazione del modello di embedding
+**Nota importante:** il modello di embedding deve rimanere coerente con quello utilizzato per indicizzare i documenti. Un'eventuale sostituzione del modello richiede la rigenerazione degli embedding delle Knowledge Base interessate.
 
-Il modello di embedding viene utilizzato da RAGFlow per convertire i documenti in rappresentazioni vettoriali, necessarie per effettuare le ricerche semantiche all'interno delle Knowledge Base.
-
-Per questo deployment viene utilizzato `nomic-embed-text`, un modello dedicato alla generazione di embedding.
-
-Scaricarlo tramite Ollama sul server Ubuntu:
-
-```bash
-ollama pull nomic-embed-text
-```
-
-Successivamente, accedere all'interfaccia Web di RAGFlow e aprire:
-
-**User Settings → Model Providers → Ollama**
-
-Aggiungere `nomic-embed-text` come modello di tipo **Embedding**, utilizzando l'istanza Ollama precedentemente configurata.
-
-Infine, aprire **System Model Settings** e impostare `nomic-embed-text` come modello di embedding predefinito.
-
-Durante la creazione delle Knowledge Base, selezionare il modello di embedding configurato.
-
-**Nota:** il modello di embedding deve rimanere coerente con quello utilizzato per indicizzare i documenti. Un'eventuale sostituzione richiede la rigenerazione degli embedding.
-
-## 7. Configurazione dell'integrazione HistoryQ – RAGFlow
+## 6. Configurazione dell'integrazione HistoryQ – RAGFlow
 
 HistoryQ comunica con RAGFlow attraverso la rete Docker condivisa.
 
@@ -408,7 +372,7 @@ L'indirizzo utilizzato dal backend è:
 http://ragflow-cpu:9380
 ```
 
-Questo indirizzo deve essere configurato nella variabile corrispondente del file `.env` di HistoryQ.
+Questo indirizzo deve essere configurato nella variabile `RAGFLOW_BASE_URL` del file `.env` di HistoryQ.
 
 Per autenticare le richieste, HistoryQ utilizza un'API Key generata dall'istanza RAGFlow.
 
@@ -422,7 +386,7 @@ RAGFLOW_API_KEY=INSERIRE_LA_PROPRIA_API_KEY
 
 La chiave deve appartenere all'istanza RAGFlow effettivamente utilizzata.
 
-Non utilizzare API Key appartenenti ad altre installazioni.
+**Attenzione:** questa API Key è distinta dalle chiavi Groq e Jina. Serve esclusivamente per autenticare HistoryQ verso RAGFlow.
 
 Dopo aver modificato il file `.env`, ricreare il backend di HistoryQ:
 
@@ -432,7 +396,7 @@ cd ~/deploy/HistoryQ-deployment-repo
 docker compose -p historyq up -d --no-deps backend
 ```
 
-## 8. Avvio di HistoryQ
+## 7. Avvio di HistoryQ
 
 Accedere alla directory del repository:
 
@@ -492,11 +456,11 @@ Per controllare un singolo servizio:
 docker compose -p historyq logs -f backend
 ```
 
-## 9. Accesso alle applicazioni
+## 8. Accesso alle applicazioni
 
-### 9.1. HistoryQ
+### 8.1. HistoryQ
 
-Se il server è configurato per pubblicare l'applicazione sul dominio previsto, HistoryQ è raggiungibile tramite:
+L'applicazione è raggiungibile tramite:
 
 ```text
 http://water.cluelab.di.unisa.it:18080/
@@ -506,7 +470,7 @@ Per installazioni su server differenti, utilizzare l'indirizzo e la porta pubbli
 
 Non è necessario configurare un tunnel SSH se la porta di HistoryQ è già raggiungibile dall'esterno.
 
-### 9.2. RAGFlow
+### 8.2. RAGFlow
 
 Per accedere all'interfaccia Web di RAGFlow, utilizzare un tunnel SSH.
 
@@ -530,7 +494,7 @@ Aprire il browser e visitare:
 http://localhost:18081
 ```
 
-## 10. Persistenza dei dati
+## 9. Persistenza dei dati
 
 HistoryQ utilizza volumi Docker per conservare i dati applicativi.
 
@@ -539,7 +503,7 @@ HistoryQ utilizza volumi Docker per conservare i dati applicativi.
 | `historyq-postgres-data` | Database PostgreSQL |
 | `historyq-silo-data` | Documenti archiviati in Silo |
 
-Sono inoltre utilizzati i seguenti identificatori persistenti:
+Sono inoltre utilizzati i seguenti identificatori:
 
 - Database PostgreSQL: `historyq`.
 - Bucket Silo: `historyq-documents`.
@@ -556,7 +520,7 @@ Non utilizzare `docker compose down -v` durante gli aggiornamenti ordinari: il c
 
 Prima di operazioni invasive è necessario predisporre un backup del database e dei documenti.
 
-## 11. Gestione del deployment
+## 10. Gestione del deployment
 
 ### Visualizzare i container HistoryQ
 
@@ -570,8 +534,6 @@ docker compose -p historyq ps
 cd ~/deploy/ragflow/docker
 docker compose -p ragflow ps
 ```
-
-Per RAGFlow, ricordarsi di utilizzare anche il file di override indicato nella sezione 4 quando si eseguono operazioni che richiedono la configurazione completa del deployment.
 
 ### Visualizzare i log HistoryQ
 
@@ -607,13 +569,7 @@ cd ~/deploy/ragflow/docker
 docker compose -p ragflow restart
 ```
 
-### Riavviare Ollama
-
-```bash
-sudo systemctl restart ollama
-```
-
-## 12. Risoluzione dei problemi
+## 11. Risoluzione dei problemi
 
 ### HistoryQ non raggiunge RAGFlow
 
@@ -637,27 +593,37 @@ http://ragflow-cpu:9380
 
 Verificare che `RAGFLOW_API_KEY` corrisponda a una chiave valida dell'istanza RAGFlow utilizzata.
 
-### RAGFlow non raggiunge Ollama
+### RAGFlow non riesce a utilizzare Groq
 
-Verificare il servizio:
+Verificare:
 
-```bash
-sudo systemctl status ollama
-```
+1. Che la API Key Groq sia corretta.
+2. Che l'account Groq disponga di quota e accesso al modello richiesto.
+3. Che il modello `openai/gpt-oss-120b` sia configurato come modello Chat.
+4. Che la verifica del modello in RAGFlow abbia esito positivo.
+5. Che il servizio RAGFlow possa raggiungere le API esterne tramite HTTPS.
 
-Verificare la porta:
-
-```bash
-ss -lntp | grep 11434
-```
-
-Verificare i modelli:
+Controllare anche i log:
 
 ```bash
-ollama list
+docker compose -p ragflow logs --tail=100
 ```
 
-Controllare che il Base URL configurato in RAGFlow utilizzi un indirizzo del server raggiungibile dai container e non `localhost`.
+### RAGFlow non riesce a utilizzare Jina
+
+Verificare:
+
+1. Che la API Key Jina sia corretta.
+2. Che il modello `jina-embeddings-v4` sia disponibile per la propria API Key.
+3. Che il modello sia configurato come Embedding.
+4. Che la verifica del modello in RAGFlow abbia esito positivo.
+5. Che il server possa raggiungere le API Jina tramite HTTPS.
+
+Controllare i log di RAGFlow:
+
+```bash
+docker compose -p ragflow logs --tail=100
+```
 
 ### Problemi di avvio dei container
 
@@ -667,9 +633,10 @@ Verificare lo stato:
 docker ps -a
 ```
 
-Controllare i log:
+Controllare i log di HistoryQ:
 
 ```bash
+cd ~/deploy/HistoryQ-deployment-repo
 docker compose -p historyq logs --tail=100
 ```
 
@@ -693,21 +660,25 @@ In caso di timeout, verificare la raggiungibilità del servizio e l'eventuale ne
 
 Non modificare l'endpoint senza aver verificato la disponibilità di un servizio alternativo.
 
----
-
-## 13. Note sulla configurazione e sulla sicurezza
+## 12. Note sulla configurazione e sulla sicurezza
 
 - Non pubblicare file `.env`, password, token o API Key nel repository.
 - Ogni installazione deve utilizzare credenziali e API Key proprie.
+- Configurare le API Key Groq e Jina direttamente nell'istanza RAGFlow.
 - Conservare una copia sicura dei file di configurazione.
 - Limitare l'esposizione delle porte dei servizi interni.
 - Predisporre backup periodici del database e dei documenti.
 - Non eliminare i volumi Docker durante gli aggiornamenti ordinari.
+- Verificare periodicamente la disponibilità e la quota dei servizi API esterni.
 
-Per ulteriori informazioni sui componenti utilizzati:
+### Documentazione dei componenti
 
 - [Docker Engine](https://docs.docker.com/engine/)
+- [Docker Compose](https://docs.docker.com/compose/)
 - [RAGFlow](https://github.com/infiniflow/ragflow)
-- [Ollama](https://ollama.com/)
-- [Qwen3](https://ollama.com/library/qwen3)
-- [nomic-embed-text](https://ollama.com/library/nomic-embed-text)
+- [Groq Console](https://console.groq.com/)
+- [Groq API Documentation](https://console.groq.com/docs)
+- [Jina AI](https://jina.ai/)
+- [Jina Embeddings](https://jina.ai/embeddings/)
+- [Jina API Documentation](https://jina.ai/embeddings/)
+
