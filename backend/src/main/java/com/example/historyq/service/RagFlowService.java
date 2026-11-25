@@ -13,6 +13,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -61,6 +63,25 @@ public class RagFlowService {
             String question,
             List<String> pageFilenames
     ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("chat_id", chatId);
+        payload.put("question", question == null ? null : question.trim());
+        payload.put("stream", false);
+        String responseBody = restClient.post()
+                .uri("/api/v1/chat/completions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+        return buildAnswerResult(responseBody, null, pageFilenames);
+    }
+
+    public Map<String, Object> askQuestion(
+            String chatId,
+            String sessionId,
+            String question,
+            List<String> pageFilenames
+    ) {
         if (chatId == null || chatId.isBlank()) {
             throw new IllegalArgumentException(
                     "Il chat ID RAGFlow non può essere vuoto."
@@ -72,59 +93,136 @@ public class RagFlowService {
                     "La domanda non può essere vuota."
             );
         }
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalArgumentException("Il session ID RAGFlow non può essere vuoto.");
+        }
+
+        validateSession(chatId, sessionId);
 
         log.info(
-                "Domanda inviata a RAGFlow: chat={}",
-                chatId
+                "Domanda inviata a RAGFlow: chat={}, session={}",
+                chatId, sessionId
         );
 
         Map<String, Object> payload = new LinkedHashMap<>();
 
-        payload.put(
-                "question",
-                question.trim()
-        );
-
-        payload.put(
-                "stream",
-                false
-        );
+        payload.put("chat_id", chatId);
+        payload.put("session_id", sessionId);
+        payload.put("question", question.trim());
+        payload.put("stream", false);
 
         String responseBody = restClient.post()
-                .uri(
-                        "/api/v1/chats/{chatId}/completions",
-                        chatId
-                )
+                .uri("/api/v1/chat/completions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
                 .retrieve()
                 .body(String.class);
 
-        String answer = extractAnswer(responseBody);
+        return buildAnswerResult(responseBody, sessionId, pageFilenames);
+    }
 
-        List<?> citations = addPageReferences(
-                extractCitations(responseBody),
-                pageFilenames
-        );
-
+    private Map<String, Object> buildAnswerResult(
+            String responseBody, String sessionId, List<String> pageFilenames) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(responseBody);
+        } catch (Exception e) {
+            throw new IllegalStateException("Risposta JSON non valida da RAGFlow.", e);
+        }
+        if (root.has("code") && root.path("code").asInt(0) != 0) {
+            throw new IllegalStateException("Errore applicativo RAGFlow: "
+                    + root.path("message").asText("risposta non valida"));
+        }
         Map<String, Object> result = new LinkedHashMap<>();
-
-        result.put(
-                "status",
-                "success"
-        );
-
-        result.put(
-                "answer",
-                answer
-        );
-
-        result.put(
-                "citations",
-                citations
-        );
-
+        result.put("status", "success");
+        result.put("answer", extractAnswer(responseBody));
+        result.put("citations", addPageReferences(
+                extractCitations(responseBody), pageFilenames));
+        if (sessionId != null) {
+            result.put("session_id", sessionId);
+        }
         return result;
+    }
+
+    public String createSession(String chatId) {
+        if (chatId == null || chatId.isBlank()) {
+            throw new IllegalArgumentException("Il chat ID RAGFlow non può essere vuoto.");
+        }
+
+        String owner = currentOwner();
+        if (owner == null) {
+            throw new IllegalStateException("Utente autenticato non disponibile.");
+        }
+        Map<String, Object> payload = Map.of("name", "HistoryQ:" + owner);
+        String responseBody = restClient.post()
+                .uri("/api/v1/chats/{chatId}/sessions", chatId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payload)
+                .retrieve()
+                .body(String.class);
+
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            assertSuccessfulResponse(root, "creazione della sessione");
+            String sessionId = root.path("data").path("id").asText();
+            if (sessionId.isBlank()) {
+                throw new IllegalStateException(
+                        "RAGFlow non ha restituito un session_id valido.");
+            }
+            log.info("Sessione RAGFlow creata: chat={}, session={}", chatId, sessionId);
+            return sessionId;
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Errore nella risposta RAGFlow durante la creazione della sessione: "
+                            + e.getMessage(), e);
+        }
+    }
+
+    public void validateSession(String chatId, String sessionId) {
+        try {
+            String responseBody = restClient.get()
+                    .uri("/api/v1/chats/{chatId}/sessions/{sessionId}",
+                            chatId, sessionId)
+                    .retrieve()
+                    .body(String.class);
+            JsonNode root = objectMapper.readTree(responseBody);
+            assertSuccessfulResponse(root, "verifica della sessione");
+            String returnedChatId = root.path("data").path("chat_id").asText();
+            String returnedSessionId = root.path("data").path("id").asText();
+            String owner = currentOwner();
+            String sessionName = root.path("data").path("name").asText();
+            if (owner == null || !("HistoryQ:" + owner).equals(sessionName)) {
+                throw new IllegalArgumentException(
+                        "La sessione RAGFlow appartiene a un altro utente.");
+            }
+            if ((!returnedChatId.isBlank() && !chatId.equals(returnedChatId))
+                    || (!returnedSessionId.isBlank() && !sessionId.equals(returnedSessionId))) {
+                throw new IllegalArgumentException(
+                        "La sessione RAGFlow non appartiene alla chat richiesta.");
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "La sessione RAGFlow non è valida o non è recuperabile.", e);
+        }
+    }
+
+    private String currentOwner() {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+            return null;
+        }
+        return authentication.getName();
+    }
+
+    private void assertSuccessfulResponse(JsonNode root, String operation) {
+        if (root.path("code").asInt(-1) != 0) {
+            throw new IllegalStateException(
+                    "Errore RAGFlow durante " + operation + ": "
+                            + root.path("message").asText("risposta non valida"));
+        }
     }
 
     private List<?> addPageReferences(
@@ -267,7 +365,7 @@ public class RagFlowService {
             String datasetId,
             String filename,
             String ocrText
-      ) {
+    ) {
         if (filename == null || filename.isBlank()) {
             throw new IllegalArgumentException(
                     "Il nome del file non può essere vuoto."
@@ -608,6 +706,79 @@ public class RagFlowService {
                 "dataset_ids",
                 List.of(datasetId)
         );
+        //Modello e parametri di generazione
+        Map<String, Object> llmSetting = new LinkedHashMap<>();
+        llmSetting.put("temperature",0.1);
+        llmSetting.put("top_p",0.3);
+        llmSetting.put("presence_penalty",0.0);
+        llmSetting.put("frequency_penalty",0.3);
+        llmSetting.put("max_tokens",4096);
+        payload.put("llm_setting",llmSetting);
+
+        //Parametri di retieval e comportamento
+        Map<String,Object> promptConfig = new LinkedHashMap<>();
+        promptConfig.put("cross_languages", List.of(
+                "English",
+                "German",
+                "Vietnamese",
+                "Chinese",
+                "Japanese",
+                "Arabic",
+                "Spanish",
+                "Korean",
+                "Turkish",
+                "French",
+                "Dutch"
+        ));
+
+        promptConfig.put("system", """
+                Sei HistoryQ, un assistente specializzato
+                nella consultazione di documenti storici.
+
+                        Rispondi utilizzando principalmente le informazioni
+                presenti nei documenti recuperati.
+
+                        Knowledge base:
+                        {knowledge}
+
+                        Non inventare informazioni, date, nomi o eventi.
+                        Se le fonti non contengono informazioni sufficienti,
+                        dichiaralo esplicitamente.
+
+                        Distingui i fatti documentati dalle deduzioni.
+                        Mantieni la fedeltà alle fonti e segnala eventuali
+                        contraddizioni tra documenti.
+                        Se l'utente chiede un riassunto, riassumi il contenuto
+                        disponibile anche quando la richiesta è generica.
+                        Rispondi nella lingua dell'utente.""");
+        promptConfig.put("prologue",
+                "Benvenuto su HistoryQ. Cosa desideri cercare nei documenti?");
+
+        promptConfig.put("quote", true);
+        promptConfig.put(
+                "empty_response",
+                "Non ho trovato contenuti sufficientemente rilevanti "
+                        + "nei documenti per rispondere alla richiesta.");
+
+        promptConfig.put("parameters", List.of(
+                Map.of("key", "knowledge", "optional", false)
+        ));
+
+        payload.put("prompt_config", promptConfig);
+
+        // Parametri di ricerca
+        payload.put("similarity_threshold", 0.10);
+        payload.put("keywords_similarity_weight", 0.25);
+        payload.put("top_n", 12);
+
+
+
+
+
+
+
+
+
         String responseBody = restClient.post()
                 .uri("/api/v1/chats")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -637,7 +808,7 @@ public class RagFlowService {
         } catch (Exception e) {
             throw new RuntimeException(
                     "Errore nella risposta di RAGFlow durante la creazione della chat."
-                   + e.getMessage(),
+                            + e.getMessage(),
                     e
             );
 
@@ -651,7 +822,7 @@ public class RagFlowService {
     ) throws InterruptedException {
 
         long startTime = System.currentTimeMillis();
-        long timeout = 10 * 60 * 1000L;
+        long timeout = 2 * 60 * 1000L;
 
         while (System.currentTimeMillis() - startTime < timeout) {
 

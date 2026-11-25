@@ -6,9 +6,23 @@
 }
 
 :root {
-  color: #342d27;
-  background: #f4f0e8;
-  font-family: "DM Sans", "Segoe UI", sans-serif;
+  --hq-white: #ffffff;
+  --hq-surface: #f5f9fb;
+  --hq-surface-muted: #eaf4f8;
+  --hq-text: #183b4e;
+  --hq-text-muted: #526a75;
+  --hq-border: #c9dce5;
+  --hq-primary: #2f6f8f;
+  --hq-primary-hover: #24566f;
+  --hq-success: #2f7d5b;
+  --hq-success-bg: #eaf6f0;
+  --hq-error: #b42318;
+  --hq-error-bg: #fdecec;
+  --hq-warning: #a15c00;
+  --hq-warning-bg: #fff4d6;
+  color: var(--hq-text);
+  background: var(--hq-surface);
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -17,12 +31,12 @@ body {
   min-width: 320px;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(174, 137, 93, 0.1), transparent 32rem),
-    #f4f0e8;
+    radial-gradient(circle at top left, rgb(47 111 143 / 10%), transparent 32rem),
+    var(--hq-surface);
 }
 
 h1, h2, h3 {
-  font-family: "Fraunces", Georgia, serif;
+  font-family: var(--font-display);
   letter-spacing: -0.025em;
 }
 
@@ -30,72 +44,138 @@ button, a, input, textarea {
   transition-duration: 180ms;
 }
 
-/* Brand palette: terracotta, olive and warm paper instead of cold UI blues. */
-.text-blue-700, .text-blue-800, .text-indigo-700, .text-indigo-600 {
-  color: #8b4935 !important;
+::selection {
+  color: var(--hq-text);
+  background: #cfe8f1;
 }
 
-.bg-blue-700, .bg-indigo-600 {
-  background-color: #8b4935 !important;
+/* Small visual refinements for a cleaner, more modern surface. */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.hover\:bg-blue-800:hover, .hover\:bg-indigo-700:hover,
-.hover\:bg-indigo-800:hover {
-  background-color: #6f3829 !important;
+button:not(:disabled):hover,
+[role="button"]:not([aria-disabled="true"]):hover {
+  transform: translateY(-1px);
 }
 
+input, textarea, select {
+  border-radius: 0.75rem;
+  background-color: rgb(255 255 255 / 88%);
+  box-shadow: 0 1px 2px rgb(24 59 78 / 4%);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(47 111 143 / 14%), 0 2px 6px rgb(24 59 78 / 6%);
+}
+
+/* Give the already rounded cards a consistent, lightweight elevation. */
+[class*="rounded-xl"][class*="bg-white"],
+[class*="rounded-2xl"][class*="bg-white"],
+[class*="rounded-3xl"][class*="bg-white"] {
+  box-shadow: 0 10px 30px -20px rgb(24 59 78 / 35%);
+}
+
+[class*="rounded-xl"][class*="border"],
+[class*="rounded-2xl"][class*="border"],
+[class*="rounded-3xl"][class*="border"] {
+  border-color: rgb(201 220 229 / 82%) !important;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--hq-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid var(--hq-surface);
+  border-radius: 999px;
+  background: #a9c8d5;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hq-primary);
+}
+
+/* Shared palette for the existing Tailwind utilities. */
+.bg-white { background-color: var(--hq-white) !important; }
+.bg-slate-50, .bg-slate-100 { background-color: var(--hq-surface) !important; }
+.bg-slate-200 { background-color: #dceaf0 !important; }
+.text-slate-900, .text-slate-800 { color: var(--hq-text) !important; }
+.text-slate-700, .text-slate-600, .text-slate-500 { color: var(--hq-text-muted) !important; }
+.text-slate-400, .text-slate-300 { color: #76909b !important; }
+.border-slate-100, .border-slate-200, .border-slate-300 {
+  border-color: var(--hq-border) !important;
+}
+.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover,
+.hover\:bg-slate-200\/60:hover { background-color: var(--hq-surface-muted) !important; }
+
+.text-blue-700, .text-blue-800, .text-indigo-700, .text-indigo-600,
+.text-blue-600, .text-indigo-800 {
+  color: var(--hq-primary) !important;
+}
+.bg-blue-700, .bg-indigo-600 { background-color: var(--hq-primary) !important; }
 .bg-blue-50, .bg-indigo-50, .bg-indigo-100 {
-  background-color: #f2e5d8 !important;
+  background-color: var(--hq-surface-muted) !important;
 }
-
+.hover\:bg-blue-800:hover, .hover\:bg-indigo-700:hover,
+.hover\:bg-indigo-800:hover { background-color: var(--hq-primary-hover) !important; }
 .border-blue-300, .border-indigo-200, .focus\:border-blue-600:focus,
-.focus\:border-indigo-500:focus {
-  border-color: #c38d70 !important;
-}
-
+.focus\:border-indigo-500:focus { border-color: var(--hq-primary) !important; }
 .focus\:ring-blue-100:focus, .focus\:ring-indigo-200:focus,
-.focus\:ring-indigo-500:focus {
-  --tw-ring-color: rgba(139, 73, 53, 0.2) !important;
-}
+.focus\:ring-indigo-500:focus { --tw-ring-color: rgb(47 111 143 / 20%) !important; }
 
-.text-emerald-600, .text-emerald-700, .text-green-700,
-.text-green-600 {
-  color: #68714a !important;
-}
-
+.text-emerald-600, .text-emerald-700, .text-emerald-800,
+.text-green-700, .text-green-600 { color: var(--hq-success) !important; }
 .bg-emerald-50, .bg-green-50, .bg-green-50\/40,
-.bg-green-50\/80, .bg-emerald-100 {
-  background-color: #e8eadb !important;
+.bg-green-50\/80, .bg-emerald-100 { background-color: var(--hq-success-bg) !important; }
+.bg-emerald-500, .bg-green-600, .bg-green-700 { background-color: var(--hq-success) !important; }
+.hover\:bg-green-800:hover, .hover\:bg-emerald-100:hover {
+  background-color: #256548 !important;
 }
+.border-green-100, .border-emerald-200 { border-color: #b8dfc9 !important; }
+.focus\:border-green-500:focus { border-color: var(--hq-success) !important; }
+.focus\:ring-green-500:focus { --tw-ring-color: rgb(47 125 91 / 20%) !important; }
 
-.bg-emerald-500, .bg-green-600, .bg-green-700 {
-  background-color: #68714a !important;
+.text-red-600, .text-red-700, .text-rose-500, .text-rose-800 {
+  color: var(--hq-error) !important;
 }
+.bg-red-50 { background-color: var(--hq-error-bg) !important; }
+.border-red-100 { border-color: #f3b8b2 !important; }
+.bg-red-500 { background-color: var(--hq-error) !important; }
 
-.hover\:bg-green-800:hover {
-  background-color: #4f5838 !important;
-}
+.text-amber-700, .text-amber-800 { color: var(--hq-warning) !important; }
+.bg-amber-50, .bg-amber-100 { background-color: var(--hq-warning-bg) !important; }
+.ring-amber-600\/20 { --tw-ring-color: rgb(161 92 0 / 20%) !important; }
 
-.border-green-100, .border-emerald-200 {
-  border-color: #cbd1b5 !important;
+/* Existing arbitrary color utilities, kept as presentation-only compatibility aliases. */
+[class~="bg-[#f8f8f6]"], [class~="bg-[#fbf9f5]"], [class~="bg-[#f3eee6]"],
+[class~="bg-[#f3eee8]"] { background-color: var(--hq-surface) !important; }
+[class~="bg-[#29251f]"], [class~="bg-[#3f352b]"],
+[class~="bg-[#102a43]"] { background-color: var(--hq-text) !important; }
+[class~="hover:bg-[#173f61]"]:hover, [class~="hover:bg-[#5a4639]"]:hover {
+  background-color: var(--hq-primary-hover) !important;
 }
+[class~="text-[#102a43]"], [class~="text-[#3f352b]"] { color: var(--hq-text) !important; }
+[class~="text-[#9A7952]"], [class~="text-[#9b8060]"],
+[class~="text-[#8b735b]"], [class~="text-[#6f5845]"] { color: var(--hq-primary) !important; }
+[class~="border-[#d9cdbd]"], [class~="border-[#e7dfd2]"],
+[class~="border-[#cfc1b0]"], [class~="border-[#c6b29d]"] {
+  border-color: var(--hq-border) !important;
+}
+[class~="bg-[#eee8df]"] { background-color: #e1edf2 !important; }
+[class~="focus:border-[#8b735b]"]:focus { border-color: var(--hq-primary) !important; }
+[class*="focus:ring-[#8b735b]"]:focus { --tw-ring-color: rgb(47 111 143 / 20%) !important; }
+[class~="bg-[#f3eee6]"], [class~="bg-[#f3eee8]"] { background-color: var(--hq-surface-muted) !important; }
+[class~="text-[#7a6752]"] { color: var(--hq-text-muted) !important; }
+[class~="bg-[#9b8060]"] { background-color: var(--hq-primary) !important; }
 
-.focus\:border-green-500:focus {
-  border-color: #8d9568 !important;
-}
-
-.focus\:ring-green-500:focus {
-  --tw-ring-color: rgba(104, 113, 74, 0.2) !important;
-}
-
-.text-\[\#102a43\] {
-  color: #3f352b !important;
-}
-
-.bg-\[\#102a43\] {
-  background-color: #3f352b !important;
-}
-
-.hover\:bg-\[\#173f61\]:hover {
-  background-color: #6f3829 !important;
-}
+/* Inline SVG brand colors used by the shell. */
+[stroke="#E8D6B5"] { stroke: #d9edf4; }
+[stroke="#C6A36A"] { stroke: #8fc1d5; }
+[fill="#29251f"] { fill: var(--hq-text); }

@@ -168,6 +168,7 @@ public class CollectionController {
 
         try {
             String question = request.get("question");
+            String sessionId = request.get("session_id");
 
             if (question == null || question.isBlank()) {
                 return ResponseEntity.badRequest()
@@ -183,6 +184,7 @@ public class CollectionController {
 
             Map<String, Object> result = ragFlowService.askQuestion(
                     chatId,
+                    sessionId,
                     question,
                     List.of()
             );
@@ -201,6 +203,18 @@ public class CollectionController {
                     .body("Errore durante l'interrogazione della collezione: "
                             + e.getMessage());
         }
+    }
+
+    @PostMapping("/{collectionId}/chat/session")
+    public ResponseEntity<?> createChatSession(
+            @PathVariable UUID collectionId,
+            Authentication authentication,
+            @RequestParam(required = false) UUID teamId) {
+        User user = getAuthenticatedUser(authentication);
+        String chatId = collectionService.getOrCreateCollectionChat(
+                collectionId, user, teamId);
+        return ResponseEntity.ok(Map.of(
+                "session_id", ragFlowService.createSession(chatId)));
     }
 
 }

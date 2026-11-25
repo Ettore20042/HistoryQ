@@ -1,103 +1,123 @@
-# HistoryQ – Deployment Guide
+# HistoryQ — Deployment Guide
 
-Guida all'installazione e all'avvio di **HistoryQ** su Ubuntu tramite Docker Compose, con RAGFlow come servizio esterno per la gestione delle knowledge base e l'interrogazione semantica.
+Guida operativa per installare e avviare HistoryQ su Ubuntu Server mediante Docker Compose.
 
 ## 1. Architettura
 
-HistoryQ è composto dai seguenti servizi:
+Il deployment è composto dai seguenti componenti:
 
-| Servizio | Tecnologia | Funzione |
+| Componente | Tecnologia | Esecuzione |
 |---|---|---|
-| Frontend | Vue 3, TypeScript, Tailwind | Interfaccia web |
-| Backend | Java 21, Spring Boot | API REST e autenticazione JWT |
-| Database | PostgreSQL 16 | Persistenza dei dati |
-| Object storage | Silo (MinIO-compatible) | Archiviazione dei documenti |
-| OCR | FastAPI / Tesseract | Estrazione del testo dai documenti |
-| RAG | RAGFlow | Elaborazione e interrogazione semantica |
+| Frontend | Vue 3, TypeScript, Tailwind CSS | Docker |
+| Backend | Java 21, Spring Boot | Docker |
+| Database | PostgreSQL 16 | Docker |
+| Object Storage | Silo | Docker |
+| Reverse Proxy | Nginx | Docker |
+| RAG Engine | RAGFlow v0.27.1 | Docker Compose separato |
+| LLM Runtime | Ollama | Ubuntu Server |
+| Chat Model | Qwen3 32B | Ollama |
+| Embedding Model | Modello dedicato | Provider configurato in RAGFlow |
+| OCR | FastAPI / Tesseract | Servizio universitario esterno |
 
-I servizi HistoryQ e RAGFlow vengono avviati tramite due progetti Docker Compose distinti.
+HistoryQ e RAGFlow utilizzano due progetti Docker Compose indipendenti, collegati attraverso la rete Docker esterna `historyq-ragflow`.
 
-### Rete Docker
+Ollama viene eseguito direttamente sul server Ubuntu, al di fuori di Docker.
 
-I due progetti comunicano attraverso una rete Docker esterna denominata `historyq-ragflow`.
+### Porte utilizzate
 
-Il backend HistoryQ raggiunge RAGFlow tramite il nome del servizio Docker:
+| Servizio | Porta | Accesso |
+|---|---:|---|
+| HistoryQ | 18080 | Porta pubblicata sulla VM |
+| RAGFlow Web UI | 18081 | Solo localhost, accesso tramite SSH |
+| RAGFlow API | 9380 | Rete Docker interna |
+| PostgreSQL | 5432 | Rete Docker interna |
+| Silo | 9000 / 9001 | Rete Docker interna |
+| Backend | 8081 | Rete Docker interna |
 
-```text
-http://ragflow-cpu:9380
+## 2. Prerequisiti
+
+Installare gli strumenti di base:
+
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates
 ```
 
-## 2. Requisiti
+Installare Docker Engine e Docker Compose seguendo la documentazione ufficiale:
+
+https://docs.docker.com/engine/install/ubuntu/
 
 Verificare l'installazione:
 
 ```bash
 docker --version
 docker compose version
-git --version
 ```
 
-## 3. Preparazione dell'ambiente
-
-Creare la directory di deployment:
+Avviare Docker:
 
 ```bash
-mkdir -p ~/deploy/HistoryQServer
+sudo systemctl enable --now docker
+```
+
+## 3. Preparazione delle directory sul server
+
+Accedere al server Ubuntu tramite SSH e creare la directory destinata a contenere i progetti:
+
+```bash
 mkdir -p ~/deploy
+cd ~/deploy
 ```
 
-Copiare il pacchetto di deployment HistoryQ nella seguente posizione:
+La directory `~/deploy` sarà la cartella principale in cui verranno collocati HistoryQ e RAGFlow.
+
+### 3.1. Copia di HistoryQ
+
+Trasferire sul server la cartella `HistoryQ-deployment-repo/` ricevuta e posizionarla all'interno di `~/deploy/`.
+
+Al termine, la struttura dovrà essere:
 
 ```text
-~/deploy/HistoryQServer/HistoryQ-admin-package
+~/deploy/
+└── HistoryQ-deployment-repo/
+    ├── .env
+    ├── compose.yaml
+    ├── Dockerfile
+    ├── backend/
+    ├── deployment/
+    ├── src/
+    └── ...
 ```
 
-Il pacchetto deve contenere almeno:
+Il file `.env` di HistoryQ deve essere presente nella directory principale del progetto, accanto a `compose.yaml`.
 
-```text
-HistoryQ-admin-package/
-├── compose.yaml
-├── .env
-├── backend/
-├── frontend/
-└── deployment/
-    └── ragflow/
-        └── compose.override.yaml
-```
+## 4. Installazione di RAGFlow
 
-Proteggere il file:
+RAGFlow viene installato separatamente da HistoryQ.
 
-```bash
-cd ~/deploy/HistoryQServer/HistoryQ-admin-package
-chmod 600 .env
-```
-
-Non pubblicare il file `.env` su GitHub e non inserirlo nei repository.
-
-## 4. Installazione e avvio di RAGFlow
-
-RAGFlow viene utilizzato come servizio indipendente. La versione di riferimento è **v0.27.1**.
-
-Clonare il repository:
+Posizionarsi nella directory di deployment:
 
 ```bash
 cd ~/deploy
-git clone https://github.com/infiniflow/ragflow.git
-cd ragflow
-git checkout v0.27.1
 ```
 
-Spostarsi nella directory Docker:
+Clonare la versione utilizzata dal progetto:
+
+```bash
+git clone -b v0.27.1 https://github.com/infiniflow/ragflow.git
+```
+
+Accedere alla directory Docker:
 
 ```bash
 cd ~/deploy/ragflow/docker
 ```
 
-Il file `docker/.env` appartiene alla configurazione del progetto RAGFlow ed è distinto dal file `.env` di HistoryQ. Mantenere la configurazione coerente con la versione RAGFlow utilizzata.
+### 4.1 Creazione della rete Docker
 
-### Creazione della rete condivisa
+HistoryQ e RAGFlow comunicano attraverso una rete Docker esterna condivisa.
 
-Creare la rete Docker esterna:
+Crearla prima di avviare i servizi:
 
 ```bash
 docker network create historyq-ragflow
@@ -105,355 +125,362 @@ docker network create historyq-ragflow
 
 Se la rete esiste già, non è necessario ricrearla.
 
-### Configurazione Compose
+### 4.2 Configurazione Compose
 
-HistoryQ include un file di override per integrare RAGFlow nella rete condivisa e limitare l'esposizione della sua interfaccia web.
+HistoryQ fornisce un file di override per configurare RAGFlow e collegarlo alla rete condivisa.
 
-Il file si trova in:
-
-```text
-~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml
-```
-
-La configurazione prevista espone l'interfaccia RAGFlow soltanto sull'interfaccia locale della VM, alla porta `18081`. L'API RAGFlow sulla porta `9380` rimane accessibile internamente tramite la rete Docker.
-
-### Avvio di RAGFlow
-
-Entrare nella directory Docker di RAGFlow:
+Verificare che il file sia presente:
 
 ```bash
-cd ~/deploy/ragflow/docker
+ls ~/deploy/HistoryQ-deployment-repo/deployment/ragflow/compose.override.yaml
 ```
 
-Avviare RAGFlow e i relativi servizi di supporto:
+Verificare la configurazione risultante:
 
 ```bash
 docker compose \
+  -p ragflow \
   -f docker-compose.yml \
-  -f ~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml \
+  -f ~/deploy/HistoryQ-deployment-repo/deployment/ragflow/compose.override.yaml \
+  config --services
+```
+
+### 4.3 Avvio di RAGFlow
+
+Avviare i servizi:
+
+```bash
+docker compose \
+  -p ragflow \
+  -f docker-compose.yml \
+  -f ~/deploy/HistoryQ-deployment-repo/deployment/ragflow/compose.override.yaml \
   up -d
 ```
 
-Il comando avvia i container necessari, tra cui RAGFlow, Elasticsearch, MySQL, MinIO e Valkey.
-
-### Verifica dello stato dei servizi
-
-Per verificare che i container siano stati avviati:
+Verificare lo stato:
 
 ```bash
-docker compose \
-  -f docker-compose.yml \
-  -f ~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml \
-  ps
+docker compose -p ragflow ps
 ```
 
-Attendere che i servizi risultino avviati e che le dipendenze abbiano raggiunto uno stato operativo.
-
-Per visualizzare i log di RAGFlow in tempo reale:
+Controllare eventuali errori:
 
 ```bash
-docker compose \
-  -f docker-compose.yml \
-  -f ~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml \
-  logs -f --tail=100 ragflow-cpu
+docker compose -p ragflow logs --tail=100
 ```
 
-### Accesso all'interfaccia web di RAGFlow
+## 5. Configurazione dei modelli in RAGFlow
 
-L'interfaccia web di RAGFlow è esposta sulla porta `18081` della macchina su cui viene eseguito Docker.
+Accedere all'interfaccia RAGFlow tramite il tunnel SSH descritto nella sezione 9.
 
-Se il server non è direttamente raggiungibile dalla rete locale, è possibile utilizzare un **tunnel SSH** per accedere all'interfaccia da un altro computer senza esporre direttamente la porta del servizio.
+Al primo accesso, se non esiste ancora un account, procedere con la registrazione.
 
-Per configurare il tunnel:
+Effettuare il login con le credenziali appena create.
 
-1. Verificare che il server sia raggiungibile tramite SSH.
-2. Aprire un terminale sul computer dal quale si desidera accedere a RAGFlow.
-3. Eseguire un comando SSH con port forwarding, sostituendo i parametri con quelli del proprio ambiente:
+Non è necessario utilizzare un account RAGFlow preesistente: la registrazione crea un account sulla nuova installazione del server.
 
-```bash
-ssh -L PORTA_LOCALE:127.0.0.1:PORTA_SERVER UTENTE@INDIRIZZO_SERVER
-```
+Nota: l'indirizzo email viene utilizzato come identificativo dell'account. Non è necessariamente richiesta la verifica tramite email, poiché l'installazione standard non prevede automaticamente un servizio di posta configurato.
 
-Dove:
+Aprire:
 
-- `PORTA_LOCALE` è la porta disponibile sul computer client sulla quale si desidera aprire il tunnel.
-- `PORTA_SERVER` è la porta sulla quale è esposta l'interfaccia web di RAGFlow sul server.
-- `UTENTE` è l'utente SSH del server.
-- `INDIRIZZO_SERVER` è l'indirizzo IP o il nome DNS del server.
+**User Settings (icona in alto a destra) → Model Providers**
 
-Mantenere aperta la sessione SSH durante l'utilizzo del servizio.
+RAGFlow supporta diversi provider per i modelli LLM e di embedding. È possibile utilizzare sia provider locali, installati e raggiungibili attraverso la propria infrastruttura, sia provider remoti che espongono API accessibili tramite Internet.
 
-Una volta stabilito il tunnel, aprire il browser sul computer client e visitare:
+La scelta del provider dipende dalle risorse hardware disponibili, dalle prestazioni richieste e dai servizi esterni che si intendono utilizzare.
 
-```text
-http://localhost:PORTA_LOCALE
-```
-Creare un account amministrativo per RAGFlow, se non è già stato fatto. L'account amministrativo consente di configurare i modelli AI e gestire le knowledge base.
+Tra i provider utilizzabili sono presenti, ad esempio:
 
+- **Groq:** permette di utilizzare modelli LLM attraverso API remote con un free tier.
+- **Jina:** permette di utilizzare modelli dedicati alla generazione di embedding attraverso API.
 
+Per configurare un provider, selezionarlo nella sezione Model Providers e inserire le informazioni richieste, come API Key, Base URL e modello, in base al servizio utilizzato.
 
-### Configurazione iniziale di RAGFlow
+**Configurazione di Groq**
 
-Al primo accesso, è necessario configurare i modelli AI utilizzati dalla piattaforma.
+Quando si utilizza Groq come provider, è necessario aggiungere prima il modello `openai/gpt-oss-120b` nella sezione Model Providers.
 
-1. Accedere alla sezione **Model providers**.
-2. Configurare un provider per il modello LLM.
-3. Configurare un provider per il modello di embedding.
-4. Verificare che entrambi i modelli siano disponibili.
-5. Impostare i modelli predefiniti nelle impostazioni di RAGFlow.
-6. Generare o recuperare una API Key da utilizzare nella configurazione di HistoryQ.
+Successivamente, si dovrà procedere con la verifica dell' api key, una volta verificata, sarà possibile configurarlo come modello LLM e utilizzarlo nelle impostazioni di sistema.
 
-La chiave API dovrà essere inserita nel parametro `RAGFLOW_API_KEY` del file `.env` di HistoryQ.
+**Configurazione dei modelli predefiniti**
 
-L'interfaccia web di RAGFlow serve per la configurazione e la gestione della piattaforma. Il backend HistoryQ comunica invece direttamente con le API RAGFlow attraverso la rete Docker, utilizzando:
+Dopo aver aggiunto e configurato i modelli desiderati, accedere a:
+
+**Model Providers → System Model Settings**
+
+In questa sezione è necessario impostare i modelli predefiniti utilizzati da RAGFlow.
+
+In particolare, configurare:
+
+- **Default LLM:** modello predefinito utilizzato per la generazione delle risposte. Ad esempio, `openai/gpt-oss-120b`.
+- **Default Embedding Model:** modello predefinito utilizzato per convertire i documenti in rappresentazioni vettoriali, necessarie per effettuare le ricerche semantiche all'interno delle Knowledge Base. Ad esempio, `jina-embedding-v4`.
+
+I modelli indicati sono esempi: è possibile utilizzare modelli differenti, purché siano stati precedentemente aggiunti e configurati nel rispettivo provider.
+
+Verificare che entrambi i modelli siano correttamente selezionati e salvare le impostazioni.
+
+## 6. Configurazione dell'integrazione HistoryQ – RAGFlow
+
+HistoryQ comunica con RAGFlow attraverso la rete Docker condivisa.
+
+L'indirizzo utilizzato dal backend è:
 
 ```text
 http://ragflow-cpu:9380
 ```
 
-## 5. Configurazione dei modelli AI
+La configurazione è già predisposta nel file `.env` di HistoryQ.
 
-RAGFlow richiede almeno un modello LLM per la generazione delle risposte e un modello di embedding per la rappresentazione vettoriale dei documenti.
+È necessario generare una nuova API Key attraverso l'interfaccia Web di RAGFlow e inserirla nella variabile corrispondente del file `.env` di HistoryQ:
 
-La configurazione è gestita dall'interfaccia di RAGFlow, nella sezione **Model providers**.
-
-Durante i test di HistoryQ sono stati utilizzati:
-
-- **Groq** per il modello LLM.
-- **Jina** per il modello di embedding.
-
-### Modello di embedding locale consigliato: BGE-M3
-
-Per documenti storici in più lingue, è possibile utilizzare **BGE-M3**, un modello multilingua dedicato agli embedding.
-
-Il modello è disponibile tramite Ollama.
-
-Installare Ollama sulla macchina Ubuntu:
-
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
+```dotenv
+RAGFLOW_API_KEY=NUOVA_API_KEY
 ```
 
-Configurare Ollama affinché sia raggiungibile dai container Docker. Per esempio, con systemd:
-
-```bash
-sudo systemctl edit ollama
-```
-
-Inserire:
-
-```ini
-[Service]
-Environment="OLLAMA_HOST=0.0.0.0:11434"
-```
-
-Salvare e riavviare il servizio:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart ollama
-```
-
-Scaricare il modello:
-
-```bash
-ollama pull bge-m3
-```
-
-Verificare che sia disponibile:
-
-```bash
-ollama list
-```
-
-In RAGFlow:
-
-1. Aprire **Model providers**.
-2. Selezionare il provider Ollama.
-3. Configurare il Base URL con un indirizzo raggiungibile dal container RAGFlow, ad esempio `http://host.docker.internal:11434`, se tale hostname è configurato e risolvibile nell'ambiente Docker.
-4. Aggiungere il modello `bge-m3` selezionando il tipo **Embedding**.
-5. Verificare il modello.
-6. Selezionarlo come modello di embedding predefinito nelle impostazioni di sistema.
-
-Il modello BGE-M3 sostituisce il provider di embedding: non è un modello LLM e non sostituisce il modello necessario per generare le risposte.
-
-## 6. Configurazione di HistoryQ
-
-Prima dell'avvio, verificare che il file `.env` fornito sia presente nella directory principale del progetto.
-
-Alcuni parametri fondamentali della configurazione devono essere coerenti con il deployment:
-
-| Parametro | Valore previsto |
-|---|---|
-| `RAGFLOW_BASE_URL` | `http://ragflow-cpu:9380` |
-| `RAGFLOW_API_KEY` | Chiave API generata da RAGFlow |
-| `APP_CORS_ALLOWED_ORIGIN` | `http://water.cluelab.di.unisa.it:18080` |
-| Endpoint OCR | `http://water.cluelab.di.unisa.it:18080/` |
-
-Assicurarsi che la variabile dedicata al servizio OCR nel file `.env` contenga l'indirizzo indicato.
-
-La chiave API di RAGFlow deve corrispondere a quella configurata nell'interfaccia RAGFlow.
+La chiave deve corrispondere all'istanza RAGFlow effettivamente utilizzata.
 
 ## 7. Avvio di HistoryQ
 
-Entrare nella directory del progetto:
+Accedere alla directory del repository:
 
 ```bash
-cd ~/deploy/HistoryQServer/HistoryQ-admin-package
+cd ~/deploy/HistoryQ-deployment-repo
 ```
 
-Verificare la configurazione Compose:
+Verificare i servizi definiti:
 
 ```bash
-docker compose config -q
+docker compose -p historyq config --services
 ```
 
-Il comando verifica la configurazione senza stampare il contenuto delle variabili d'ambiente.
+I servizi attesi sono:
 
-Costruire le immagini e avviare i servizi:
-
-```bash
-docker compose up -d --build
+```text
+postgres
+silo
+backend
+frontend
+nginx
 ```
 
-I servizi avviati sono:
-
-- `postgres`
-- `silo`
-- `backend`
-- `frontend`
-- `nginx`
-
-Verificare lo stato:
+Verificare che i volumi persistenti siano presenti nella configurazione:
 
 ```bash
-docker compose ps
+docker compose -p historyq config --volumes
 ```
 
-
-## 9. Gestione quotidiana
-
-
-### HistoryQ
-
-Entrare nella directory:
+Avviare HistoryQ:
 
 ```bash
-cd ~/deploy/HistoryQServer/HistoryQ-admin-package
+docker compose -p historyq up -d --build
 ```
 
-Visualizzare i container:
+Verificare lo stato dei container:
 
 ```bash
-docker compose ps
-```
-
-Visualizzare i log di tutti i servizi:
-
-```bash
-docker compose logs -f --tail=100
-```
-
-Visualizzare soltanto i log del backend:
-
-```bash
-docker compose logs -f --tail=100 backend
-```
-
-Visualizzare i log di PostgreSQL:
-
-```bash
-docker compose logs -f --tail=100 postgres
-```
-
-Riavviare i servizi:
-
-```bash
-docker compose restart
-```
-
-Arrestare i servizi senza eliminare i volumi:
-
-```bash
-docker compose down
-```
-
-### RAGFlow
-
-Entrare nella directory:
-
-```bash
-cd ~/deploy/ragflow/docker
+docker compose -p historyq ps
 ```
 
 Visualizzare i log:
 
 ```bash
-docker compose \
-  -f docker-compose.yml \
-  -f ~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml \
-  logs -f --tail=100 ragflow-cpu
+docker compose -p historyq logs -f
 ```
 
-Riavviare i servizi:
+Per controllare un singolo servizio:
 
 ```bash
-docker compose \
-  -f docker-compose.yml \
-  -f ~/deploy/HistoryQServer/HistoryQ-admin-package/deployment/ragflow/compose.override.yaml \
-  restart
+docker compose -p historyq logs -f backend
 ```
 
+## 8. Accesso alle applicazioni
 
-## 10. Aggiornamento del codice
+### 8.1 HistoryQ
 
-Quando cambia il codice sorgente di HistoryQ, ricostruire le immagini interessate.
+HistoryQ è raggiungibile direttamente tramite il seguente indirizzo:
 
-Per il backend:
+```text
+http://INDIRIZZO_SERVER:18080/
+```
+
+Sostituire `INDIRIZZO_SERVER` con l'indirizzo IP o hostname effettivo del server Ubuntu.
+
+Non è necessario configurare un tunnel SSH per accedere a questa interfaccia.
+
+Nota: gli indirizzi utilizzati da HistoryQ e dal servizio OCR sono configurati nel file `.env`. Verificare che siano corretti e, se necessario, modificarli in base agli indirizzi effettivi del server e del servizio OCR disponibili nell'ambiente di deployment.
+
+### 8.2 RAGFlow
+
+Aprire un secondo terminale Windows:
+
+```powershell
+ssh -L 18081:127.0.0.1:18081 -p PORTA_SSH UTENTE@INDIRIZZO_SERVER
+```
+
+Sostituire i parametri con i valori effettivi del server:
+
+- `PORTA_SSH` – Porta SSH del server Ubuntu.
+- `UTENTE` – Nome utente per l'accesso SSH.
+- `INDIRIZZO_SERVER` – Indirizzo IP o hostname del server Ubuntu.
+
+Aprire:
+
+```text
+http://127.0.0.1:18081
+```
+
+## 9. Persistenza dei dati
+
+HistoryQ utilizza volumi Docker per conservare i dati applicativi.
+
+| Volume | Contenuto |
+|---|---|
+| `historyq-postgres-data` | Database PostgreSQL |
+| `historyq-silo-data` | Documenti archiviati in Silo |
+
+Sono inoltre utilizzati i seguenti identificatori persistenti:
+
+- Database PostgreSQL: `historyq`.
+- Bucket Silo: `historyq-documents`.
+
+È fondamentale mantenere il nome del progetto Compose:
 
 ```bash
-cd ~/deploy/HistoryQServer/HistoryQ-admin-package
-docker compose build backend
-docker compose up -d backend
+-p historyq
 ```
 
-Per il frontend:
+Questo consente di mantenere coerenti i nomi dei container e dei volumi.
+
+Non utilizzare `docker compose down -v` durante gli aggiornamenti ordinari: il comando può eliminare i volumi persistenti e causare la perdita dei dati.
+
+Prima di operazioni invasive è necessario predisporre un backup del database e dei documenti.
+
+## 10. Gestione del deployment
+
+### Visualizzare i container HistoryQ
 
 ```bash
-docker compose build frontend
-docker compose up -d frontend
+docker compose -p historyq ps
 ```
 
-Per ricostruire e riavviare entrambi:
+### Visualizzare i container RAGFlow
 
 ```bash
-docker compose up -d --build
+cd ~/deploy/ragflow/docker
+
+docker compose -p ragflow ps
 ```
 
-Quando cambia la configurazione Compose, utilizzare `up -d` per applicare le modifiche e ricreare i container interessati. Il semplice comando `restart` non applica le modifiche alla configurazione Compose.
+### Visualizzare i log HistoryQ
 
-## 11. Diagnostica
+```bash
+cd ~/deploy/HistoryQ-deployment-repo
 
-### Verifica dei container
+docker compose -p historyq logs -f
+```
+
+### Visualizzare i log RAGFlow
+
+```bash
+cd ~/deploy/ragflow/docker
+
+docker compose -p ragflow logs -f
+```
+
+### Visualizzare l'utilizzo delle risorse
+
+```bash
+docker stats
+```
+
+### Riavviare HistoryQ
+
+```bash
+cd ~/deploy/HistoryQ-deployment-repo
+
+docker compose -p historyq restart
+```
+
+### Riavviare RAGFlow
+
+```bash
+cd ~/deploy/ragflow/docker
+
+docker compose -p ragflow restart
+```
+
+### Riavviare Ollama
+
+```bash
+sudo systemctl restart ollama
+```
+
+## 11. Risoluzione dei problemi
+
+### HistoryQ non raggiunge RAGFlow
+
+Verificare che entrambi i progetti siano attivi:
 
 ```bash
 docker ps
 ```
 
-Per visualizzare anche i container arrestati:
+Verificare la rete condivisa:
+
+```bash
+docker network inspect historyq-ragflow
+```
+
+Controllare che il backend utilizzi:
+
+```text
+http://ragflow-cpu:9380
+```
+
+Verificare che `RAGFLOW_API_KEY` corrisponda a una chiave valida dell'istanza RAGFlow utilizzata.
+
+### RAGFlow non raggiunge Ollama
+
+Verificare il servizio:
+
+```bash
+sudo systemctl status ollama
+```
+
+Verificare la porta:
+
+```bash
+ss -lntp | grep 11434
+```
+
+Verificare i modelli:
+
+```bash
+ollama list
+```
+
+Controllare che il Base URL configurato in RAGFlow utilizzi l'indirizzo del server raggiungibile dai container e non `localhost`.
+
+### Problemi di avvio dei container
+
+Verificare lo stato:
 
 ```bash
 docker ps -a
 ```
 
-### Verifica delle reti Docker
+Controllare i log:
 
 ```bash
-docker network ls
+docker compose -p historyq logs --tail=100
 ```
 
-Controllare la rete condivisa:
+Per RAGFlow:
 
 ```bash
-docker network inspect historyq-ragflow
+docker compose -p ragflow logs --tail=100
 ```
+
+### Problemi OCR
+
+HistoryQ utilizza il servizio OCR universitario esterno configurato nel file `.env`.

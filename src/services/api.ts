@@ -65,19 +65,31 @@ export interface ChatResponse {
   citations: Array<string | Record<string, unknown>>
 }
 
-export async function askDocumentQuestion(documentId: string, question: string): Promise<ChatResponse> {
+export async function createDocumentChatSession(documentId: string): Promise<string> {
+  const response = await authenticatedFetch(`/api/documents/${documentId}/chat/session`, { method: 'POST' })
+  if (!response.ok) throw new Error(await response.text() || 'Impossibile creare la sessione RAG.')
+  return (await response.json() as { session_id: string }).session_id
+}
+
+export async function askDocumentQuestion(documentId: string, question: string, sessionId: string): Promise<ChatResponse> {
   const response = await authenticatedFetch(`/api/documents/${documentId}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, session_id: sessionId }),
   })
   if (!response.ok) throw new Error(await response.text() || 'Errore durante la richiesta alla chat.')
   return await response.json() as ChatResponse
 }
-export async function askTeamDocumentQuestion(teamId: string, documentId: string, question: string): Promise<ChatResponse> {
+export async function createTeamDocumentChatSession(teamId: string, documentId: string): Promise<string> {
+  const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/chat/session`, { method: 'POST' })
+  if (!response.ok) throw new Error(await response.text() || 'Impossibile creare la sessione RAG.')
+  return (await response.json() as { session_id: string }).session_id
+}
+
+export async function askTeamDocumentQuestion(teamId: string, documentId: string, question: string, sessionId: string): Promise<ChatResponse> {
   const response = await authenticatedFetch(`/api/teams/${teamId}/documents/${documentId}/chat`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, session_id: sessionId }),
   })
   if (!response.ok) throw new Error(await response.text() || 'Errore durante la richiesta alla chat.')
   return await response.json() as ChatResponse
@@ -186,7 +198,8 @@ export async function getPublicPageTranscription(documentId: string, filename: s
 export async function askCollectionQuestion(
     collectionId: string,
     question: string,
-    teamId?: string
+    teamId?: string,
+    sessionId?: string
 ): Promise<ChatResponse> {
   const response = await authenticatedFetch(
       `/api/collections/${collectionId}/chat${teamId ? `?teamId=${teamId}` : ''}`,
@@ -195,7 +208,7 @@ export async function askCollectionQuestion(
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, session_id: sessionId }),
       }
 
   )
@@ -208,6 +221,14 @@ export async function askCollectionQuestion(
   }
 
   return await response.json() as ChatResponse
+}
+
+export async function createCollectionChatSession(collectionId: string, teamId?: string): Promise<string> {
+  const response = await authenticatedFetch(
+      `/api/collections/${collectionId}/chat/session${teamId ? `?teamId=${teamId}` : ''}`,
+      { method: 'POST' })
+  if (!response.ok) throw new Error(await response.text() || 'Impossibile creare la sessione RAG.')
+  return (await response.json() as { session_id: string }).session_id
 }
 
 export interface TeamCollectionResponse {
@@ -242,34 +263,34 @@ export async function removeTeamCollection(teamId: string, collectionId: string)
 }
 
 export interface TeamResponse {
-    id: string
-    name: string
-    description:string|null
-    createdBy:unknown
+  id: string
+  name: string
+  description:string|null
+  createdBy:unknown
 }
 export interface CreateTeamRequest{
-    name: string
-    description:string|null
+  name: string
+  description:string|null
 }
 export async function getTeam(teamId:string): Promise<TeamResponse> {
-    const response = await authenticatedFetch(`/api/teams/${teamId}`)
-    if (!response.ok) throw new Error('Failed to get team')
-    return await response.json() as TeamResponse
+  const response = await authenticatedFetch(`/api/teams/${teamId}`)
+  if (!response.ok) throw new Error('Failed to get team')
+  return await response.json() as TeamResponse
 }
 
 export async function getTeams(): Promise<TeamResponse[]> {
-    const response = await authenticatedFetch('/api/teams')
-    if (!response.ok) throw new Error('Failed to get teams')
-    return await response.json() as TeamResponse[]
+  const response = await authenticatedFetch('/api/teams')
+  if (!response.ok) throw new Error('Failed to get teams')
+  return await response.json() as TeamResponse[]
 }
 export async function createTeam(team: CreateTeamRequest): Promise<TeamResponse> {
-    const response = await authenticatedFetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(team),
-    })
-    if (!response.ok) throw new Error('Failed to create team')
-    return await response.json() as TeamResponse
+  const response = await authenticatedFetch('/api/teams', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(team),
+  })
+  if (!response.ok) throw new Error('Failed to create team')
+  return await response.json() as TeamResponse
 }
 
 export interface TeamMemberResponse {

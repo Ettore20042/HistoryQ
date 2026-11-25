@@ -162,6 +162,7 @@ public class TeamDocumentController {
             @RequestBody Map<String, String> request) throws Exception {
         Document document = teamDocumentService.getSharedDocument(teamId, documentId);
         String question = request == null ? null : request.get("question");
+        String sessionId = request == null ? null : request.get("session_id");
         if (question == null || question.isBlank()) {
             return ResponseEntity.badRequest().body("La domanda non può essere vuota.");
         }
@@ -169,10 +170,21 @@ public class TeamDocumentController {
             return ResponseEntity.status(409).body("La chat non è ancora disponibile.");
         }
         return ResponseEntity.ok(ragFlowService.askQuestion(
-                document.getRagflowChatId(), question,
+                document.getRagflowChatId(), sessionId, question,
                 storageService.listObjects(document.getStoragePath()).stream()
                         .map(object -> object.substring(object.lastIndexOf("/") + 1))
                         .toList()));
+    }
+
+    @PostMapping("/{documentId}/chat/session")
+    public ResponseEntity<?> createChatSession(
+            @PathVariable UUID teamId, @PathVariable UUID documentId) {
+        Document document = teamDocumentService.getSharedDocument(teamId, documentId);
+        if (document.getRagflowChatId() == null || document.getRagflowChatId().isBlank()) {
+            return ResponseEntity.status(409).body("La chat non è ancora disponibile.");
+        }
+        return ResponseEntity.ok(Map.of(
+                "session_id", ragFlowService.createSession(document.getRagflowChatId())));
     }
 
     public record PageTranscriptionResponse(
