@@ -263,34 +263,34 @@ export async function removeTeamCollection(teamId: string, collectionId: string)
 }
 
 export interface TeamResponse {
-    id: string
-    name: string
-    description:string|null
-    createdBy:unknown
+  id: string
+  name: string
+  description:string|null
+  createdBy:unknown
 }
 export interface CreateTeamRequest{
-    name: string
-    description:string|null
+  name: string
+  description:string|null
 }
 export async function getTeam(teamId:string): Promise<TeamResponse> {
-    const response = await authenticatedFetch(`/api/teams/${teamId}`)
-    if (!response.ok) throw new Error('Failed to get team')
-    return await response.json() as TeamResponse
+  const response = await authenticatedFetch(`/api/teams/${teamId}`)
+  if (!response.ok) throw new Error('Failed to get team')
+  return await response.json() as TeamResponse
 }
 
 export async function getTeams(): Promise<TeamResponse[]> {
-    const response = await authenticatedFetch('/api/teams')
-    if (!response.ok) throw new Error('Failed to get teams')
-    return await response.json() as TeamResponse[]
+  const response = await authenticatedFetch('/api/teams')
+  if (!response.ok) throw new Error('Failed to get teams')
+  return await response.json() as TeamResponse[]
 }
 export async function createTeam(team: CreateTeamRequest): Promise<TeamResponse> {
-    const response = await authenticatedFetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(team),
-    })
-    if (!response.ok) throw new Error('Failed to create team')
-    return await response.json() as TeamResponse
+  const response = await authenticatedFetch('/api/teams', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(team),
+  })
+  if (!response.ok) throw new Error('Failed to create team')
+  return await response.json() as TeamResponse
 }
 
 export interface TeamMemberResponse {

@@ -17,8 +17,8 @@ Il deployment è composto dai seguenti componenti:
 | Reverse Proxy | Nginx | Docker |
 | RAG Engine | RAGFlow v0.27.1 | Docker Compose separato |
 | LLM Runtime | Ollama | Ubuntu Server |
-| Chat Model | Qwen3 | Ollama |
-| Embedding Model | nomic-embed-text | Ollama |
+| Chat Model | Qwen3 32B | Ollama |
+| Embedding Model | Modello dedicato | Provider configurato in RAGFlow |
 | OCR | FastAPI / Tesseract | Servizio universitario esterno |
 
 HistoryQ e RAGFlow utilizzano due progetti Docker Compose indipendenti, collegati attraverso la rete Docker esterna `historyq-ragflow`.

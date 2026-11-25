@@ -44,8 +44,8 @@ interface AnswerTable {
 }
 
 type AnswerBlock =
-  | { type: 'text'; value: string }
-  | { type: 'table'; value: AnswerTable }
+    | { type: 'text'; value: string }
+    | { type: 'table'; value: AnswerTable }
 
 const emit = defineEmits<{
   (event: 'citation-page', filename: string): void
@@ -198,8 +198,8 @@ function clearChat() {
       id: 'welcome',
       role: 'assistant',
       text: props.collectionId
-        ? 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti della collezione!'
-        : 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti caricati!',
+          ? 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti della collezione!'
+          : 'Cronologia azzerata. Chiedi qualsiasi informazione sui documenti caricati!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]
@@ -260,10 +260,10 @@ function answerBlocks(text: string): AnswerBlock[] {
     const separator = lines[index + 1]
 
     if (
-      header?.includes('|')
-      && separator
-      && separator.includes('|')
-      && isTableSeparator(separator ?? '')
+        header?.includes('|')
+        && separator
+        && separator.includes('|')
+        && isTableSeparator(separator ?? '')
     ) {
       const rows: string[][] = []
       let rowIndex = index + 2
@@ -323,10 +323,10 @@ function openCitation(citation: Citation) {
       </div>
 
       <button
-        type="button"
-        class="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-        title="Cancella cronologia chat"
-        @click="clearChat"
+          type="button"
+          class="text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+          title="Cancella cronologia chat"
+          @click="clearChat"
       >
         Azzera conversazione
       </button>
@@ -334,28 +334,28 @@ function openCitation(citation: Citation) {
 
     <!-- Area Messaggi: Altezza fissa scrollabile h-[500px] overflow-y-auto -->
     <div
-      ref="chatContainerRef"
-      class="h-[500px] overflow-y-auto p-5 space-y-4 bg-slate-50/40"
+        ref="chatContainerRef"
+        class="h-[500px] overflow-y-auto p-5 space-y-4 bg-slate-50/40"
     >
       <div
-        v-for="msg in messages"
-        :key="msg.id"
-        class="flex flex-col"
-        :class="msg.role === 'user' ? 'items-end' : 'items-start'"
+          v-for="msg in messages"
+          :key="msg.id"
+          class="flex flex-col"
+          :class="msg.role === 'user' ? 'items-end' : 'items-start'"
       >
         <div class="flex items-end gap-2 max-w-[85%] sm:max-w-[78%]">
           <!-- Avatar IA -->
           <div
-            v-if="msg.role === 'assistant'"
-            class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mb-0.5 text-xs font-bold"
+              v-if="msg.role === 'assistant'"
+              class="w-6 h-6 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0 mb-0.5 text-xs font-bold"
           >
             HG
           </div>
 
           <!-- Bolla messaggio: Utente (blu/indigo) vs IA (grigio/slate) -->
           <div
-            class="p-3.5 text-sm leading-relaxed"
-            :class="[
+              class="p-3.5 text-sm leading-relaxed"
+              :class="[
               msg.role === 'user'
                 ? 'bg-indigo-600 text-white rounded-2xl rounded-br-xs shadow-xs'
                 : 'bg-slate-100 text-slate-800 border border-slate-200/80 rounded-2xl rounded-bl-xs shadow-xs'
@@ -364,42 +364,42 @@ function openCitation(citation: Citation) {
             <div class="space-y-3 select-text">
               <template v-for="(block, blockIndex) in answerBlocks(msg.text)" :key="blockIndex">
                 <p
-                  v-if="block.type === 'text'"
-                  class="whitespace-pre-wrap"
+                    v-if="block.type === 'text'"
+                    class="whitespace-pre-wrap"
                 >
                   {{ block.value }}
                 </p>
 
                 <div
-                  v-else
-                  class="max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white"
+                    v-else
+                    class="max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-white"
                 >
                   <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
                     <thead class="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600">
-                      <tr>
-                        <th
+                    <tr>
+                      <th
                           v-for="(header, headerIndex) in block.value.headers"
                           :key="headerIndex"
                           class="whitespace-nowrap px-3 py-2 font-semibold"
-                        >
-                          {{ header }}
-                        </th>
-                      </tr>
+                      >
+                        {{ header }}
+                      </th>
+                    </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                      <tr
+                    <tr
                         v-for="(row, rowIndex) in block.value.rows"
                         :key="rowIndex"
                         class="align-top even:bg-slate-50"
-                      >
-                        <td
+                    >
+                      <td
                           v-for="(cell, cellIndex) in row"
                           :key="cellIndex"
                           class="min-w-40 px-3 py-2 leading-relaxed text-slate-700"
-                        >
-                          {{ cell }}
-                        </td>
-                      </tr>
+                      >
+                        {{ cell }}
+                      </td>
+                    </tr>
                     </tbody>
                   </table>
                 </div>
@@ -408,15 +408,15 @@ function openCitation(citation: Citation) {
 
             <!-- Eventuali citazioni/fonti -->
             <div
-              v-if="msg.citations && msg.citations.length > 0"
-              class="mt-2.5 pt-2 border-t border-slate-200 text-xs text-slate-500"
+                v-if="msg.citations && msg.citations.length > 0"
+                class="mt-2.5 pt-2 border-t border-slate-200 text-xs text-slate-500"
             >
               <span class="font-semibold block mb-1">Fonti consultate:</span>
               <div class="mt-2 space-y-2">
                 <article
-                  v-for="(cit, idx) in msg.citations"
-                  :key="idx"
-                  class="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+                    v-for="(cit, idx) in msg.citations"
+                    :key="idx"
+                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
                 >
                   <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
@@ -429,11 +429,11 @@ function openCitation(citation: Citation) {
                     </div>
 
                     <button
-                      v-if="typeof cit !== 'string' && cit.pageFilename"
-                      type="button"
-                      class="shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                      title="Apri la pagina originale"
-                      @click="openCitation(cit)"
+                        v-if="typeof cit !== 'string' && cit.pageFilename"
+                        type="button"
+                        class="shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                        title="Apri la pagina originale"
+                        @click="openCitation(cit)"
                     >
                       Apri pagina
                     </button>
@@ -468,14 +468,14 @@ function openCitation(citation: Citation) {
 
     <!-- Alert errore se presente -->
     <div
-      v-if="errorAlert"
-      class="px-5 py-2 bg-rose-50 border-t border-rose-100 text-rose-700 text-xs flex items-center justify-between"
+        v-if="errorAlert"
+        class="px-5 py-2 bg-rose-50 border-t border-rose-100 text-rose-700 text-xs flex items-center justify-between"
     >
       <span>{{ errorAlert }}</span>
       <button
-        type="button"
-        class="text-rose-500 hover:text-rose-800 font-bold ml-2 cursor-pointer"
-        @click="errorAlert = null"
+          type="button"
+          class="text-rose-500 hover:text-rose-800 font-bold ml-2 cursor-pointer"
+          @click="errorAlert = null"
       >
         ✕
       </button>
@@ -485,21 +485,21 @@ function openCitation(citation: Citation) {
     <div class="p-3.5 border-t border-slate-200 bg-white">
       <form class="flex items-center gap-2" @submit.prevent="handleSendMessage">
         <input
-          v-model="inputQuery"
-          type="text"
-          :placeholder="props.collectionId
+            v-model="inputQuery"
+            type="text"
+            :placeholder="props.collectionId
             ? 'Scrivi una domanda sulla collezione... (Premi Invio)'
             : 'Scrivi una domanda sui documenti... (Premi Invio)'"
-          class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-          :disabled="isLoading"
-          @keyup.enter="handleSendMessage"
+            class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+            :disabled="isLoading"
+            @keyup.enter="handleSendMessage"
         />
 
         <button
-          type="submit"
-          class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer shrink-0"
-          :disabled="!inputQuery.trim() || isLoading"
-          title="Invia messaggio"
+            type="submit"
+            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer shrink-0"
+            :disabled="!inputQuery.trim() || isLoading"
+            title="Invia messaggio"
         >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />

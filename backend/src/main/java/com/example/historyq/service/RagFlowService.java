@@ -365,7 +365,7 @@ public class RagFlowService {
             String datasetId,
             String filename,
             String ocrText
-      ) {
+    ) {
         if (filename == null || filename.isBlank()) {
             throw new IllegalArgumentException(
                     "Il nome del file non può essere vuoto."
@@ -812,7 +812,7 @@ public class RagFlowService {
         } catch (Exception e) {
             throw new RuntimeException(
                     "Errore nella risposta di RAGFlow durante la creazione della chat."
-                   + e.getMessage(),
+                            + e.getMessage(),
                     e
             );
 

@@ -1,4 +1,4 @@
--- HistoryGenie — Migration V1
+
 -- Flyway esegue questo file automaticamente al primo avvio di Spring Boot.
 -- Percorso: src/main/resources/db/migration/V1__init.sql
 
